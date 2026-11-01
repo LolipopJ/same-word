@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
+import { log } from "./log.js";
+
 export type Session = {
   id: string;
   token: string;
@@ -17,6 +19,7 @@ export class Sessions {
       now - session.lastActive >= 86_400_000
     ) {
       this.entries.delete(session.token);
+      log(`Session expired: ${session.id}`);
       return undefined;
     }
     return session;
@@ -32,6 +35,7 @@ export class Sessions {
         lastActive: now,
       };
       this.entries.set(session.token, session);
+      log(`Session created: ${session.id}`);
     }
     session.lastActive = now;
     return session;

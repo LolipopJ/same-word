@@ -13,7 +13,8 @@ import type {
   ServerToClientEvents,
 } from "../shared/protocol.js";
 import { commands } from "../shared/protocol.js";
-import { accepted, errorAck } from "./errors.js";
+import { accepted, CommandError, errorAck } from "./errors.js";
+import { log } from "./log.js";
 import { Rooms } from "./rooms.js";
 import { Sessions } from "./sessions.js";
 
@@ -24,6 +25,15 @@ export async function createApp({
 } = {}) {
   const app = Fastify({ logger: false });
   const sessions = new Sessions();
+  app.addHook("onError", (request, _reply, error, done) => {
+    const code = (request.params as { code?: string } | undefined)?.code;
+    log(
+      `HTTP ${request.method} ${request.routeOptions.url}: ${error.message}`,
+      code && /^[A-Z2-9]{6}$/.test(code) ? code : null,
+      "error",
+    );
+    done();
+  });
   await app.register(cookie);
   function sameOrigin(headers: {
     origin?: string;
@@ -38,15 +48,21 @@ export async function createApp({
     app.server,
     {
       maxHttpBufferSize: 16_384,
-      allowRequest: (request, callback) =>
-        callback(null, sameOrigin(request.headers)),
+      allowRequest: (request, callback) => {
+        const allowed = sameOrigin(request.headers);
+        if (!allowed)
+          log("Socket connection rejected: cross-origin request", null, "warn");
+        callback(null, allowed);
+      },
     },
   );
   app.post("/api/session", (request, reply) => {
-    if (!sameOrigin(request.headers))
+    if (!sameOrigin(request.headers)) {
+      log("Session request rejected: cross-origin request", null, "warn");
       return reply
         .code(403)
         .send({ code: "SESSION_REQUIRED", message: "仅允许同源访问" });
+    }
     const session = sessions.restore(request.cookies.session, rooms.now().mono);
     reply.header("Cache-Control", "no-store");
     reply.setCookie("session", session.token, {
@@ -62,7 +78,10 @@ export async function createApp({
       app.parseCookie(socket.request.headers.cookie ?? "").session,
       rooms.now().mono,
     );
-    if (!session) return next(new Error("SESSION_REQUIRED"));
+    if (!session) {
+      log("Socket connection rejected: session required", null, "warn");
+      return next(new Error("SESSION_REQUIRED"));
+    }
     socket.data.session = session;
     next();
   });
@@ -81,10 +100,15 @@ export async function createApp({
     session.connectionId = socket.id;
     session.lastActive = rooms.now().mono;
     if (oldId) {
+      log(
+        `Session taken over by another connection: ${session.id}`,
+        session.roomCode,
+      );
       io.to(oldId).emit("session:replaced");
       io.sockets.sockets.get(oldId)?.disconnect(true);
     }
     rooms.connect(session);
+    if (!session.roomCode) log(`Player connected: ${session.id}`);
     socket.emit("state:sync", rooms.snapshot(session));
     for (const event of Object.keys(commands) as (keyof typeof commands)[]) {
       socket.on(event, ((raw: unknown, acknowledge?: (ack: Ack) => void) => {
@@ -93,6 +117,11 @@ export async function createApp({
           session.connectionId !== socket.id ||
           !sessions.entries.has(session.token)
         ) {
+          log(
+            `${event} rejected: TAKEN_OVER (player=${session.id})`,
+            session.roomCode,
+            "warn",
+          );
           return acknowledge({
             ok: false,
             code: "TAKEN_OVER",
@@ -100,7 +129,15 @@ export async function createApp({
           });
         }
         const parsed = commands[event].safeParse(raw);
-        if (!parsed.success)
+        const roomCode =
+          session.roomCode ??
+          (parsed.success && "code" in parsed.data ? parsed.data.code : null);
+        if (!parsed.success) {
+          log(
+            `${event} rejected: INVALID_INPUT (player=${session.id})`,
+            roomCode,
+            "warn",
+          );
           return acknowledge({
             ok: false,
             code: "INVALID_INPUT",
@@ -109,6 +146,7 @@ export async function createApp({
                 ? "配置无效：容量 2～99、最多轮数 2～999、每轮时限 1～600 秒，均须为整数"
                 : "输入格式无效，请检查后重试",
           });
+        }
         session.lastActive = rooms.now().mono;
         try {
           let ack: Ack = accepted;
@@ -133,14 +171,27 @@ export async function createApp({
           socket.emit("state:sync", rooms.snapshot(session));
           acknowledge(ack);
         } catch (error) {
+          const expected = error instanceof CommandError;
+          const reason = expected
+            ? error.code
+            : error instanceof Error
+              ? error.message
+              : String(error);
+          log(
+            `${event} ${expected ? "rejected" : "failed"}: ${reason} (player=${session.id})`,
+            roomCode,
+            expected ? "warn" : "error",
+          );
           acknowledge(errorAck(error));
         }
       }) as never);
     }
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       if (session.connectionId !== socket.id) return;
       session.connectionId = null;
       rooms.disconnect(session);
+      if (!session.roomCode)
+        log(`Player disconnected: ${session.id} (${reason})`);
     });
   });
   app.get("/health", () => ({ ok: true }));
@@ -207,10 +258,14 @@ export async function createApp({
   const cleanup = setInterval(() => sessions.cleanup(rooms.now().mono), 60_000);
   cleanup.unref();
   app.addHook("onClose", async () => {
+    log(
+      `Server closing: ${rooms.entries.size} rooms, ${sessions.entries.size} sessions`,
+    );
     clearInterval(cleanup);
     io.disconnectSockets(true);
     rooms.close();
     await io.close();
+    log("Server stopped");
   });
   return { app, io, rooms, sessions };
 }

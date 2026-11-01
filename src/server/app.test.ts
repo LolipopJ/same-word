@@ -90,6 +90,57 @@ async function harness(t: TestContext) {
   };
 }
 
+test("console logs identify rooms without exposing credentials or hidden answers", async (t) => {
+  const lines: string[] = [];
+  t.mock.method(console, "info", (line: string) => lines.push(line));
+  t.mock.method(console, "warn", (line: string) => lines.push(line));
+  const h = await harness(t);
+  const a = await h.connect();
+  const b = await h.connect();
+  await h.command(a, "room:create", { name: "Alice" });
+  const code = a.latest.room!.code;
+  await h.command(b, "room:join", { code, name: "Bob" });
+  await h.command(b, "room:configure", {
+    capacity: 8,
+    maxRounds: 20,
+    roundSeconds: 60,
+  });
+  await h.command(a, "player:ready", { ready: true });
+  await h.command(b, "player:ready", { ready: true });
+  h.advance(3000);
+  const gameId = (await h.state(a)).room!.game!.id;
+  await h.command(a, "game:submit", {
+    gameId,
+    round: 1,
+    requestId: crypto.randomUUID(),
+    word: "UNREVEALED_SECRET",
+  });
+  h.advance(60_000);
+  await h.command(a, "room:leave");
+  await h.command(b, "room:leave");
+
+  const roomLines = lines.filter((line) => line.includes(`[${code}]`));
+  for (const event of [
+    "Room created",
+    "Bob joined",
+    "room:configure rejected",
+    "Game started",
+    "Alice submitted",
+    "timed out",
+    "Game finished",
+    "Room destroyed",
+  ]) {
+    assert.ok(
+      roomLines.some((line) => line.includes(event)),
+      `Missing room-scoped log: ${event}`,
+    );
+  }
+  const output = lines.join("\n");
+  assert.ok(!output.includes("UNREVEALED_SECRET"));
+  for (const session of h.sessions.entries.values())
+    assert.ok(!output.includes(session.token));
+});
+
 test("lobby validates host configuration, names, countdown cancellation and host transfer", async (t) => {
   const h = await harness(t);
   const a = await h.connect();

@@ -20,6 +20,7 @@ import {
   replay,
   submit,
 } from "./game.js";
+import { log } from "./log.js";
 import type { Session } from "./sessions.js";
 
 export type Time = { mono: number; wall: number };
@@ -79,6 +80,7 @@ export class Rooms {
     };
     this.add(room, session, name);
     this.entries.set(code, room);
+    log(`Room created by ${room.members.get(session.id)!.name}`, code);
     this.changed(room);
     return { ...accepted, roomCode: code };
   }
@@ -94,6 +96,10 @@ export class Rooms {
     if (room.members.size >= room.config.capacity)
       reject("ROOM_FULL", "房间已满");
     this.add(room, session, name);
+    log(
+      `${room.members.get(session.id)!.name} joined (${room.members.size}/${room.config.capacity})`,
+      code,
+    );
     this.changed(room);
     return { ...accepted, roomCode: code };
   }
@@ -132,6 +138,7 @@ export class Rooms {
     if (room.phase !== "WAITING") reject("WRONG_PHASE", "只能在准备阶段改名");
     const name = this.name(room, session.id, raw);
     const member = room.members.get(session.id)!;
+    log(`${member.name} renamed to ${name}`, room.code);
     member.name = name;
     member.ready = false;
     this.changed(room);
@@ -142,6 +149,10 @@ export class Rooms {
     this.advance(room);
     if (room.phase === "PLAYING") reject("WRONG_PHASE", "对局进行中");
     room.members.get(session.id)!.ready = ready;
+    log(
+      `${room.members.get(session.id)!.name} ${ready ? "ready" : "not ready"}`,
+      room.code,
+    );
     if (!ready && room.phase === "COUNTDOWN") this.cancelCountdown(room);
     else this.startCountdownIfReady(room);
     this.changed(room);
@@ -156,6 +167,10 @@ export class Rooms {
     if (config.capacity < room.members.size)
       reject("INVALID_INPUT", "容量不能低于当前成员人数");
     room.config = { ...config };
+    log(
+      `Settings updated: capacity=${config.capacity}, rounds=${config.maxRounds}, time=${config.roundSeconds}s`,
+      room.code,
+    );
     for (const member of room.members.values()) member.ready = false;
     this.changed(room);
     return accepted;
@@ -171,6 +186,10 @@ export class Rooms {
     )
       reject("STALE_REQUEST", "请求已过期");
     forfeit(room.game, session.id, "voluntary", now);
+    log(
+      `${room.members.get(session.id)!.name} forfeited round ${input.round}`,
+      room.code,
+    );
     this.finishIfNeeded(room);
     this.changed(room);
     return accepted;
@@ -189,6 +208,10 @@ export class Rooms {
     this.advance(room, now);
     if (!room.game) reject("STALE_REQUEST", "本局已结束");
     const ack = submit(room.game, session.id, input, now);
+    log(
+      `${room.members.get(session.id)!.name} submitted round ${input.round}`,
+      room.code,
+    );
     this.finishIfNeeded(room);
     this.changed(room);
     return ack;
@@ -221,6 +244,7 @@ export class Rooms {
   }
   leave(session: Session): Ack {
     const room = this.room(session);
+    const name = room.members.get(session.id)!.name;
     const now = this.now();
     this.advance(room, now);
     if (
@@ -232,6 +256,10 @@ export class Rooms {
       this.finishIfNeeded(room);
     }
     room.members.delete(session.id);
+    log(
+      `${name} left (${room.members.size}/${room.config.capacity})`,
+      room.code,
+    );
     session.roomCode = null;
     session.lastActive = this.now().mono;
     if (room.phase === "COUNTDOWN") this.cancelCountdown(room);
@@ -247,6 +275,7 @@ export class Rooms {
     const member = room.members.get(session.id);
     if (!member) return;
     member.offlineAt = null;
+    log(`${member.name} reconnected`, room.code);
     this.transferHost(room);
     this.changed(room);
   }
@@ -258,6 +287,7 @@ export class Rooms {
     if (!member) return;
     member.ready = false;
     member.offlineAt = this.now().mono;
+    log(`${member.name} disconnected`, room.code);
     if (room.phase === "COUNTDOWN") this.cancelCountdown(room);
     this.transferHost(room);
     this.changed(room);
@@ -265,9 +295,15 @@ export class Rooms {
   transferHost(room: Room) {
     if (room.hostId && room.members.get(room.hostId)?.session.connectionId)
       return;
+    const previousHost = room.hostId;
     room.hostId =
       [...room.members.values()].find((member) => member.session.connectionId)
         ?.session.id ?? null;
+    if (room.hostId !== previousHost)
+      log(
+        `Host changed: ${room.hostId ? room.members.get(room.hostId)!.name : "no online members"}`,
+        room.code,
+      );
   }
   advance(room: Room, now = this.now()) {
     if (this.entries.get(room.code) !== room) return;
@@ -281,6 +317,7 @@ export class Rooms {
           member.session.roomCode = null;
           member.session.lastActive = now.mono;
           room.members.delete(id);
+          log(`${member.name} removed after 120s offline`, room.code);
           removed = true;
         }
       }
@@ -306,16 +343,36 @@ export class Rooms {
         room.config,
         now,
       );
+      log(`Game started: ${room.members.size} players, round 1`, room.code);
       this.changed(room);
     }
     if (room.game && now.mono >= room.game.deadline) {
+      const round = room.game.round.number;
+      if (room.game.phase === "COLLECTING") {
+        const missing = room.game.players.filter(
+          (player) =>
+            !player.forfeit && !room.game!.round.answers.has(player.id),
+        );
+        log(
+          `Round ${round} timed out: ${missing.map((player) => player.name).join(", ")}`,
+          room.code,
+          "warn",
+        );
+      }
       advanceGame(room.game, now);
+      if (room.game.round.number !== round)
+        log(`Round ${room.game.round.number} started`, room.code);
       this.finishIfNeeded(room);
       this.changed(room);
     }
   }
   private finishIfNeeded(room: Room) {
     if (room.game?.phase !== "FINISHED") return;
+    const result = room.game.result!;
+    log(
+      `Game finished: ${result.reason}, rounds=${result.roundsStarted}, players=${result.finalCount}/${result.initialCount}, duration=${Math.round(result.durationMs / 1000)}s`,
+      room.code,
+    );
     room.lastGame = room.game;
     room.game = undefined;
     room.phase = "WAITING";
@@ -334,9 +391,11 @@ export class Rooms {
     ) {
       room.phase = "COUNTDOWN";
       room.countdown = now.mono + 3000;
+      log("Countdown started: 3s", room.code);
     }
   }
   private cancelCountdown(room: Room) {
+    log("Countdown cancelled", room.code);
     room.phase = "WAITING";
     room.countdown = null;
   }
@@ -345,6 +404,7 @@ export class Rooms {
     room.version++;
     if (room.members.size === 0) {
       this.entries.delete(room.code);
+      log("Room destroyed: no members", room.code);
       return;
     }
     const deadlines = [

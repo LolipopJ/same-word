@@ -15,9 +15,10 @@ export type Action = <K extends Command>(
 export default function App() {
   const { snapshot, status, send, offset } = useRoom();
   const [name, setName] = useState("");
-  const [code, setCode] = useState(
-    location.pathname.match(/^\/rooms\/([A-Z2-9]{6})$/i)?.[1] ?? "",
-  );
+  const inviteCode = location.pathname.startsWith("/rooms/")
+    ? (location.pathname.split("/")[2] ?? "").toUpperCase()
+    : null;
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState(false);
@@ -110,11 +111,8 @@ export default function App() {
           {error}
         </p>
       )}
-      {!room && online && location.pathname.startsWith("/rooms/") && (
-        <InviteStatus
-          key={snapshot?.playerId}
-          code={location.pathname.split("/")[2] ?? ""}
-        />
+      {!room && online && inviteCode !== null && (
+        <InviteStatus key={snapshot?.playerId} code={inviteCode} />
       )}
       {!room ? (
         <div
@@ -143,7 +141,9 @@ export default function App() {
           </section>
           <section className="card bg-base-100 shadow-sm card-border">
             <div className="card-body gap-5">
-              <h2 className="card-title">开始一场默契实验</h2>
+              <h2 className="card-title">
+                {inviteCode !== null ? "加入朋友的房间" : "开始一场默契实验"}
+              </h2>
               <label className="fieldset">
                 展示 ID
                 <input
@@ -158,31 +158,42 @@ export default function App() {
               <p id="name-hint" className="text-sm">
                 1～20 个字符，同房间内不能重名。
               </p>
-              <button
-                className="btn btn-primary"
-                disabled={!online || busy}
-                onClick={() => void act(() => send("room:create", { name }))}
-              >
-                创建房间
-              </button>
+              {inviteCode === null && (
+                <button
+                  className="btn btn-primary"
+                  disabled={!online || busy}
+                  onClick={() => void act(() => send("room:create", { name }))}
+                >
+                  创建房间
+                </button>
+              )}
               <form
                 className="fieldset gap-3"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void act(() => send("room:join", { name, code }));
+                  void act(() =>
+                    send("room:join", { name, code: inviteCode ?? code }),
+                  );
                 }}
               >
-                <label htmlFor="room-code">已有邀请？输入房间码</label>
-                <input
-                  id="room-code"
-                  className="input w-full tracking-widest uppercase"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  maxLength={6}
-                  autoComplete="off"
-                  placeholder="6 位房间码"
-                />
-                <button className="btn" disabled={!online || busy}>
+                {inviteCode === null && (
+                  <>
+                    <label htmlFor="room-code">已有邀请？输入房间码</label>
+                    <input
+                      id="room-code"
+                      className="input w-full tracking-widest uppercase"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      autoComplete="off"
+                      placeholder="6 位房间码"
+                    />
+                  </>
+                )}
+                <button
+                  className={inviteCode !== null ? "btn btn-primary" : "btn"}
+                  disabled={!online || busy}
+                >
                   加入房间
                 </button>
               </form>
