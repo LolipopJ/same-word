@@ -20,9 +20,9 @@ export function InviteStatus({ code }: { code: string }) {
     return () => controller.abort();
   }, [code]);
   return (
-    <p className="mb-6 alert" role="status">
+    <p className="alert text-sm" role="status">
       {status}
-      <a className="link" href="/">
+      <a className="btn btn-ghost" href="/">
         回到首页
       </a>
     </p>

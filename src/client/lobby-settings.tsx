@@ -21,7 +21,7 @@ export function LobbySettings({
   return (
     <div
       className="
-        mt-5 grid gap-6
+        grid min-w-0 gap-6
         sm:grid-cols-2
       "
     >
@@ -38,6 +38,7 @@ export function LobbySettings({
           className="input w-full"
           value={name}
           onChange={(event) => setName(event.target.value)}
+          aria-describedby="form-error"
         />
         <button className="btn" disabled={disabled || room.phase !== "WAITING"}>
           保存展示 ID
@@ -51,9 +52,7 @@ export function LobbySettings({
             void action("room:configure", config);
           }}
         >
-          <legend className="fieldset-legend">
-            房主配置 · 保存后全员重新准备
-          </legend>
+          <p className="font-semibold">房主配置 · 保存后全员重新准备</p>
           {(
             [
               { key: "capacity", label: "容量", min: 2, max: 99 },

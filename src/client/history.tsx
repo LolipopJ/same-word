@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { HistoryPage, RoomView } from "../shared/protocol.js";
-import { RoundAnswers } from "./game-screen.js";
+import { RoundAnswers } from "./round-answers.js";
 
 export function History({
   room,
@@ -108,7 +108,7 @@ export function History({
             <p>还没有已揭晓轮次。</p>
           ) : (
             page?.rounds.map((round) => (
-              <RoundAnswers key={round.number} round={round} />
+              <RoundAnswers key={round.number} round={round} mode="history" />
             ))
           )}
           {page?.hasMore && (

@@ -32,8 +32,9 @@ export function ThemeSwitcher() {
         role="radiogroup"
         aria-label="页面主题"
         className="
-          dropdown dropdown-end z-10 max-h-80 w-52 overflow-y-auto rounded-box
-          bg-base-100 p-2 shadow-lg
+          dropdown dropdown-end z-10 max-h-[min(24rem,70dvh)] w-52
+          max-w-[calc(100dvw-1.5rem)] overflow-y-auto rounded-box bg-base-100
+          p-2 shadow-lg
         "
         style={{ positionAnchor: "--theme-picker" }}
       >

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Ack, Command, Payload } from "../shared/protocol.js";
-import { GameScreen, Remaining, Results } from "./game-screen.js";
+import { GameScreen } from "./game-screen.js";
 import { History } from "./history.js";
-import { InviteStatus } from "./invite-status.js";
-import { LobbySettings } from "./lobby-settings.js";
+import { HomeScreen } from "./home-screen.js";
+import { LobbyScreen } from "./lobby-screen.js";
+import { Results } from "./results.js";
+import { SuccessConfetti } from "./success-confetti.js";
 import { ThemeSwitcher } from "./theme-switcher.js";
+import { usePresentation } from "./use-presentation.js";
 import { useRoom } from "./use-room.js";
 
 export type Action = <K extends Command>(
@@ -13,12 +16,10 @@ export type Action = <K extends Command>(
   payload: Payload<K>,
 ) => Promise<boolean>;
 export default function App() {
-  const { snapshot, status, send, offset } = useRoom();
-  const [name, setName] = useState("");
+  const { snapshot, update, status, send, offset } = useRoom();
   const inviteCode = location.pathname.startsWith("/rooms/")
     ? (location.pathname.split("/")[2] ?? "").toUpperCase()
     : null;
-  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState(false);
@@ -40,6 +41,11 @@ export default function App() {
     !room?.game &&
     result.gameId !== dismissed &&
     result.players.some((player) => player.id === snapshot?.playerId);
+  const { feedback, motionEnabled } = usePresentation(
+    update,
+    online,
+    !!showResult,
+  );
   useEffect(() => {
     if (room?.code) history.replaceState(null, "", `/rooms/${room.code}`);
   }, [room?.code]);
@@ -70,17 +76,28 @@ export default function App() {
   return (
     <main
       className="
-        mx-auto max-w-4xl px-5 py-8
-        sm:p-12
+        mx-auto max-w-4xl
+        px-[max(0.75rem,env(safe-area-inset-left),env(safe-area-inset-right))]
+        pt-[max(1rem,env(safe-area-inset-top))]
+        pb-[max(1.5rem,env(safe-area-inset-bottom))]
+        sm:px-[max(2rem,env(safe-area-inset-left),env(safe-area-inset-right))]
+        sm:pt-[max(2rem,env(safe-area-inset-top))]
       "
+      data-feedback={feedback?.id}
+      data-motion={motionEnabled ? "on" : "off"}
     >
-      {/* eslint-disable-next-line better-tailwindcss/enforce-consistent-line-wrapping */}
-      <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
-        <a href="/" className="text-2xl font-black tracking-tight">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <a
+          href="/"
+          className="
+            inline-flex min-h-11 items-center gap-2 text-xl font-black
+            tracking-tight
+          "
+        >
           同词 <span className="text-sm font-medium">Same word</span>
         </a>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="badge badge-outline">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="badge h-auto badge-outline py-1 text-center">
             {online
               ? "已连接"
               : status === "replaced"
@@ -106,100 +123,19 @@ export default function App() {
           tabIndex={-1}
           id="form-error"
           role="alert"
-          className="mb-5 alert alert-error"
+          className="mb-5 alert wrap-anywhere alert-error"
         >
           {error}
         </p>
       )}
-      {!room && online && inviteCode !== null && (
-        <InviteStatus key={snapshot?.playerId} code={inviteCode} />
-      )}
       {!room ? (
-        <div
-          className="
-            grid gap-8
-            md:grid-cols-2 md:items-center
-          "
-        >
-          <section>
-            <p className="mb-4 text-sm font-semibold tracking-widest">
-              一起想，想一起。
-            </p>
-            <h1
-              className="
-                text-5xl/tight font-black
-                sm:text-6xl
-              "
-            >
-              不同的起点，
-              <br />
-              同一个词。
-            </h1>
-            <p className="mt-6 text-lg/relaxed">
-              和朋友各写一个词，再从彼此的答案里寻找连接。你们的想法，会在第几轮相遇？
-            </p>
-          </section>
-          <section className="card bg-base-100 shadow-sm card-border">
-            <div className="card-body gap-5">
-              <h2 className="card-title">
-                {inviteCode !== null ? "加入朋友的房间" : "开始一场默契实验"}
-              </h2>
-              <label className="fieldset">
-                展示 ID
-                <input
-                  className="input w-full"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="nickname"
-                  placeholder="你希望朋友怎么称呼你"
-                  aria-describedby="name-hint form-error"
-                />
-              </label>
-              <p id="name-hint" className="text-sm">
-                1～20 个字符，同房间内不能重名。
-              </p>
-              {inviteCode === null && (
-                <button
-                  className="btn btn-primary"
-                  disabled={!online || busy}
-                  onClick={() => void act(() => send("room:create", { name }))}
-                >
-                  创建房间
-                </button>
-              )}
-              <form
-                className="fieldset gap-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void act(() =>
-                    send("room:join", { name, code: inviteCode ?? code }),
-                  );
-                }}
-              >
-                {inviteCode === null && (
-                  <>
-                    <label htmlFor="room-code">已有邀请？输入房间码</label>
-                    <input
-                      id="room-code"
-                      className="input w-full tracking-widest uppercase"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      maxLength={6}
-                      autoComplete="off"
-                      placeholder="6 位房间码"
-                    />
-                  </>
-                )}
-                <button
-                  className={inviteCode !== null ? "btn btn-primary" : "btn"}
-                  disabled={!online || busy}
-                >
-                  加入房间
-                </button>
-              </form>
-            </div>
-          </section>
-        </div>
+        <HomeScreen
+          inviteCode={inviteCode}
+          online={online}
+          disabled={!online || busy}
+          error={error}
+          action={action}
+        />
       ) : (
         <>
           {room.game ? (
@@ -210,112 +146,26 @@ export default function App() {
               disabled={!online || busy}
               offset={offset}
               error={error}
+              feedback={feedback}
             />
           ) : showResult ? (
             <Results
               result={result}
+              feedback={feedback}
               onConfirm={() => {
                 sessionStorage.setItem("dismissed-result", result.gameId);
                 setDismissed(result.gameId);
               }}
             />
           ) : (
-            <section className="card card-border">
-              <div className="card-body">
-                <p className="text-sm">房间码</p>
-                <h1 className="text-4xl font-black tracking-widest">
-                  {room.code}
-                </h1>
-                <label className="fieldset">
-                  邀请链接
-                  <input
-                    className="input w-full"
-                    readOnly
-                    value={`${location.origin}/rooms/${room.code}`}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                </label>
-                <p role="status">
-                  {room.phase === "COUNTDOWN"
-                    ? "全员准备！3 秒后一起开始…"
-                    : room.phase === "PLAYING"
-                      ? "对局已开始"
-                      : `全员在线并准备后开始 · 最多 ${room.config.maxRounds} 轮 · 每轮 ${room.config.roundSeconds} 秒`}
-                </p>
-                {room.countdownAt && (
-                  <Remaining deadlineAt={room.countdownAt} offset={offset} />
-                )}
-                <h2 className="mt-5 card-title">
-                  朋友们 · {room.members.length}/{room.config.capacity}
-                </h2>
-                <ul className="space-y-3">
-                  {room.members.map((member) => (
-                    <li
-                      key={member.id}
-                      className="
-                        flex flex-wrap items-center justify-between gap-3
-                        rounded-box bg-base-200 p-4
-                      "
-                    >
-                      <span className="min-w-0 flex-1 wrap-break-word">
-                        {member.name}
-                        {member.id === room.hostId ? " · 房主" : ""}
-                        {member.id === snapshot?.playerId ? " · 你" : ""}
-                      </span>
-                      <span className="badge">
-                        {member.online
-                          ? member.ready
-                            ? "已准备"
-                            : "未准备"
-                          : "断线"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button
-                    className="btn btn-primary"
-                    autoFocus
-                    disabled={!online || busy || room.phase === "PLAYING"}
-                    onClick={() =>
-                      void act(() =>
-                        send("player:ready", {
-                          ready: !room.members.find(
-                            (member) => member.id === snapshot?.playerId,
-                          )?.ready,
-                        }),
-                      )
-                    }
-                  >
-                    {room.members.find(
-                      (member) => member.id === snapshot?.playerId,
-                    )?.ready
-                      ? "取消准备"
-                      : "准备"}
-                  </button>
-                </div>
-                <LobbySettings
-                  key={JSON.stringify(room.config) + room.hostId}
-                  room={room}
-                  playerId={snapshot!.playerId}
-                  disabled={!online || busy}
-                  action={action}
-                />
-                <button
-                  className="btn mt-5 self-start"
-                  disabled={!online || busy}
-                  onClick={() =>
-                    void act(async () => {
-                      const ack = await send("room:leave", {});
-                      if (ack.ok) history.replaceState(null, "", "/");
-                      return ack;
-                    })
-                  }
-                >
-                  离开房间
-                </button>
-              </div>
-            </section>
+            <LobbyScreen
+              room={room}
+              playerId={snapshot!.playerId}
+              disabled={!online || busy}
+              offset={offset}
+              action={action}
+              feedback={feedback}
+            />
           )}
           {room.game && (
             <div className="mt-5 flex flex-wrap gap-3">
@@ -350,6 +200,9 @@ export default function App() {
             disabled={!online}
           />
         </>
+      )}
+      {showResult && feedback?.success && (
+        <SuccessConfetti key={feedback.id} requestId={feedback.id} />
       )}
     </main>
   );

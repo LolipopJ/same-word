@@ -10,13 +10,15 @@ import type {
   ServerToClientEvents,
   Snapshot,
 } from "../shared/protocol.js";
+import type { RoomUpdate } from "./room-update.js";
 
 export function useRoom() {
   const socketRef = useRef<Socket<
     ServerToClientEvents,
     ClientToServerEvents
   > | null>(null);
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [update, setUpdate] = useState<RoomUpdate | null>(null);
+  const connectionGenerationRef = useRef(0);
   const latestSnapshotRef = useRef<Snapshot | null>(null);
   const [status, setStatus] = useState<
     "connecting" | "online" | "offline" | "replaced"
@@ -24,6 +26,7 @@ export function useRoom() {
   const [offset, setOffset] = useState(0);
   useEffect(() => {
     let alive = true;
+    let baseline = true;
     const connection = io({ autoConnect: false });
     socketRef.current = connection;
     async function initialize() {
@@ -36,6 +39,8 @@ export function useRoom() {
       }
     }
     connection.on("connect", () => {
+      connectionGenerationRef.current += 1;
+      baseline = true;
       setStatus("online");
       connection.emit("state:sync", {}, () => {});
     });
@@ -61,7 +66,12 @@ export function useRoom() {
         return;
       latestSnapshotRef.current = next;
       setOffset(next.serverNow - Date.now());
-      setSnapshot(next);
+      setUpdate({
+        snapshot: next,
+        connection: connectionGenerationRef.current,
+        baseline,
+      });
+      baseline = false;
     });
     void initialize();
     return () => {
@@ -93,5 +103,5 @@ export function useRoom() {
     }
     throw new Error("未收到确认");
   }
-  return { snapshot, status, send, offset };
+  return { snapshot: update?.snapshot ?? null, update, status, send, offset };
 }
