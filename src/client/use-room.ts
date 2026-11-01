@@ -1,0 +1,97 @@
+import { useEffect, useRef, useState } from "react";
+import type { Socket } from "socket.io-client";
+import { io } from "socket.io-client";
+
+import type {
+  Ack,
+  ClientToServerEvents,
+  Command,
+  Payload,
+  ServerToClientEvents,
+  Snapshot,
+} from "../shared/protocol.js";
+
+export function useRoom() {
+  const socketRef = useRef<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>(null);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const latestSnapshotRef = useRef<Snapshot | null>(null);
+  const [status, setStatus] = useState<
+    "connecting" | "online" | "offline" | "replaced"
+  >("connecting");
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const connection = io({ autoConnect: false });
+    socketRef.current = connection;
+    async function initialize() {
+      try {
+        const response = await fetch("/api/session", { method: "POST" });
+        if (!response.ok) throw new Error("会话创建失败");
+        if (alive) connection.connect();
+      } catch {
+        if (alive) setStatus("offline");
+      }
+    }
+    connection.on("connect", () => {
+      setStatus("online");
+      connection.emit("state:sync", {}, () => {});
+    });
+    connection.on("disconnect", () =>
+      setStatus((current) => (current === "replaced" ? current : "offline")),
+    );
+    connection.on("connect_error", (error) => {
+      setStatus("offline");
+      if (error.message === "SESSION_REQUIRED") void initialize();
+    });
+    connection.on("session:replaced", () => {
+      setStatus("replaced");
+      connection.disconnect();
+    });
+    connection.on("state:sync", (next: Snapshot) => {
+      const current = latestSnapshotRef.current;
+      if (
+        current?.room?.code === next.room?.code &&
+        current?.room &&
+        next.room &&
+        current.room.version > next.room.version
+      )
+        return;
+      latestSnapshotRef.current = next;
+      setOffset(next.serverNow - Date.now());
+      setSnapshot(next);
+    });
+    void initialize();
+    return () => {
+      alive = false;
+      connection.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+  async function send<K extends Command>(
+    event: K,
+    payload: Payload<K>,
+  ): Promise<Ack> {
+    const connection = socketRef.current;
+    if (!connection?.connected || status !== "online")
+      throw new Error("连接已中断，请等待恢复后操作");
+    const attempts = event === "game:submit" ? 3 : 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await (
+          connection.timeout(2500).emitWithAck as (
+            event: Command,
+            payload: unknown,
+          ) => Promise<Ack>
+        )(event, payload);
+      } catch {
+        if (attempt === attempts - 1 || !connection.connected)
+          throw new Error("未收到确认，请检查连接；已接受的答案会在恢复后显示");
+      }
+    }
+    throw new Error("未收到确认");
+  }
+  return { snapshot, status, send, offset };
+}
