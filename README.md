@@ -51,7 +51,7 @@ are excluded from linting.
 6. 全员同词立即成功；结果页每人独立确认返回，全员重新准备开始新的一局。
 
 默认容量 8 人、最多 20 轮、每轮 60 秒。词语去除首尾空白并忽略大小写；
-` Apple ` 与 `apple` 同词，`苹果` 与 `蘋果` 不同词。展示原文保留大小写。
+`Apple` 与 `apple` 同词，`苹果` 与 `蘋果` 不同词。展示原文保留大小写。
 词语和展示 ID 为 1～20 个 Unicode 码点，不能包含换行或控制字符；同房间 ID 忽略大小写后唯一。
 作答隐藏至揭晓，成功提交后不可修改；非法输入保留重试机会且不会延长截止时间。
 
@@ -108,22 +108,27 @@ pnpm start
 `GET /api/rooms/:code` 仅返回邀请是否有效，不返回成员或游戏信息。
 
 只能部署一个服务进程，不运行 Node cluster 或多副本。进程管理器应保持单实例，并允许 WebSocket 和长轮询。
-HTTPS 可由平台或 Nginx 终止。以下配置中的 `map` 放在 `http` 块内，`location` 放在已配置 TLS 的 `server` 块内：
+HTTPS 可由平台或 Nginx 终止。`sameword.example.com` 的 Nginx 配置见 [`deploy/nginx.conf`](deploy/nginx.conf)：
+前端文件由 Nginx 直接提供，`/api/`、`/socket.io/` 和 `/health` 保留原路径转发到 `127.0.0.1:3000`。
+该部署的 `.env` 设置为：
 
-```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    '' close;
-}
+```dotenv
+NODE_ENV=production
+HOST=127.0.0.1
+PORT=6999
+PUBLIC_ORIGIN=https://sameword.example.com
+```
 
-location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
-    proxy_read_timeout 75s;
-}
+- `root` 指向 `/path/to/same-word/dist/client`，与 Vite 构建输出一致，而不是 `dist`。
+- 配置文件须由 Nginx 的 `http` 块加载，不能把包含 `map` 的整份配置放入 `server` 块。
+- `/assets/` 中带哈希的构建资源缓存一年，缺失文件返回 404；页面使用 `no-cache`，邀请链接刷新时回退到 `index.html`。
+- 代理关闭 Nginx 缓存并保留 API 返回的 `Cache-Control: no-store`；Socket.IO 同时支持 WebSocket 升级与长轮询，读取超时为 75 秒。
+
+构建并启动单个 Node.js 服务后，在服务器检查配置并重载 Nginx：
+
+```sh
+sudo nginx -t && sudo systemctl reload nginx
+curl -fsS https://sameword.example.com/health
 ```
 
 `GET /health` 可用于健康检查。不要将 Cookie 或 Socket.IO 负载写入访问日志。
