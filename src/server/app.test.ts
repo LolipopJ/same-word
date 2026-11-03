@@ -199,7 +199,13 @@ test("lobby validates host configuration, names, countdown cancellation and host
     true,
   );
   await h.command(c, "room:join", { code, name: "C" });
-  assert.equal((await h.command(a, "room:configure", min)).ok, false);
+  // Three members with capacity 2 must report the dedicated reason, not the
+  // generic range message the client shows for other invalid configs.
+  assert.deepEqual(await h.command(a, "room:configure", min), {
+    ok: false,
+    code: "CONFIG_BELOW_MEMBERS",
+    message: "容量不能低于当前成员人数",
+  });
   await h.command(a, "player:ready", { ready: true });
   await h.command(b, "player:ready", { ready: true });
   await h.command(c, "player:ready", { ready: true });

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { Ack, Command, Payload } from "../shared/protocol.js";
+import type { Ack, Command, ErrorCode, Payload } from "../shared/protocol.js";
 import { GameScreen } from "./game-screen.js";
 import { History } from "./history.js";
 import { HomeScreen } from "./home-screen.js";
+import { type ErrorDescriptor, useLocale } from "./i18n/locale.js";
+import { LanguageSwitcher } from "./language-switcher.js";
 import { LobbyScreen } from "./lobby-screen.js";
 import { Results } from "./results.js";
 import { SuccessConfetti } from "./success-confetti.js";
@@ -14,13 +16,16 @@ import { useRoom } from "./use-room.js";
 export type Action = <K extends Command>(
   event: K,
   payload: Payload<K>,
+  overrides?: Partial<Record<ErrorCode, ErrorDescriptor>>,
 ) => Promise<boolean>;
 export default function App() {
   const { snapshot, update, status, send, offset } = useRoom();
+  const { t, describe, errorText } = useLocale();
   const inviteCode = location.pathname.startsWith("/rooms/")
     ? (location.pathname.split("/")[2] ?? "").toUpperCase()
     : null;
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ErrorDescriptor | null>(null);
+  const errorMessage = error ? errorText(error) : "";
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(() =>
@@ -34,7 +39,7 @@ export default function App() {
     useState(errorContext);
   if (previousErrorContext !== errorContext) {
     setPreviousErrorContext(errorContext);
-    setError("");
+    setError(null);
   }
   const showResult =
     result &&
@@ -52,25 +57,29 @@ export default function App() {
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error]);
-  async function act(operation: () => Promise<Ack>) {
+  async function act(
+    operation: () => Promise<Ack>,
+    overrides: Partial<Record<ErrorCode, ErrorDescriptor>> = {},
+  ) {
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       const ack = await operation();
-      if (!ack.ok) setError(ack.message);
+      if (!ack.ok)
+        setError(overrides[ack.code] ?? { kind: "code", code: ack.code });
     } catch (error) {
-      setError(error instanceof Error ? error.message : "操作失败，请重试");
+      setError(describe(error));
     } finally {
       setBusy(false);
     }
   }
-  const action: Action = async (event, payload) => {
+  const action: Action = async (event, payload, overrides) => {
     let success = false;
     await act(async () => {
       const ack = await send(event, payload);
       success = ack.ok;
       return ack;
-    });
+    }, overrides);
     return success;
   };
   return (
@@ -94,26 +103,27 @@ export default function App() {
             tracking-tight
           "
         >
-          同词 <span className="text-sm font-medium">Same word</span>
+          {t.app.brand}
         </a>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="badge h-auto badge-outline py-1 text-center">
             {online
-              ? "已连接"
+              ? t.app.statusOnline
               : status === "replaced"
-                ? "已被另一标签页接管"
-                : "正在恢复连接"}
+                ? t.app.statusReplaced
+                : t.app.statusReconnecting}
           </span>
+          <LanguageSwitcher />
           <ThemeSwitcher />
         </div>
       </header>
       {!online && (
         <p className="mb-5 alert" role="status">
           {status === "replaced"
-            ? "此身份正在另一标签页使用。刷新可重新接管。"
-            : "正在恢复连接，倒计时继续。请保留页面。"}
+            ? t.app.replacedNotice
+            : t.app.reconnectingNotice}
           <button className="btn" onClick={() => location.reload()}>
-            重新连接
+            {t.app.reconnect}
           </button>
         </p>
       )}
@@ -125,7 +135,7 @@ export default function App() {
           role="alert"
           className="mb-5 alert wrap-anywhere alert-error"
         >
-          {error}
+          {errorMessage}
         </p>
       )}
       {!room ? (
@@ -133,7 +143,7 @@ export default function App() {
           inviteCode={inviteCode}
           online={online}
           disabled={!online || busy}
-          error={error}
+          error={errorMessage}
           action={action}
         />
       ) : (
@@ -145,7 +155,7 @@ export default function App() {
               action={action}
               disabled={!online || busy}
               offset={offset}
-              error={error}
+              error={errorMessage}
               feedback={feedback}
             />
           ) : showResult ? (
@@ -179,7 +189,7 @@ export default function App() {
                   })
                 }
               >
-                放弃本局，留在房间
+                {t.app.forfeit}
               </button>
               <button
                 className="btn"
@@ -190,7 +200,7 @@ export default function App() {
                   })
                 }
               >
-                离开房间
+                {t.app.leave}
               </button>
             </div>
           )}

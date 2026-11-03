@@ -1,5 +1,6 @@
 import type { RoundView } from "../shared/protocol.js";
 import { GroupStars } from "./group-stars.js";
+import { useLocale } from "./i18n/locale.js";
 
 export function RoundAnswers({
   round,
@@ -10,6 +11,7 @@ export function RoundAnswers({
   mode?: "reveal" | "reference" | "result" | "history";
   feedback?: string;
 }) {
+  const { t } = useLocale();
   const compact = mode === "reference" || mode === "result";
   const feedback =
     mode === "reveal" || mode === "result" ? requestedFeedback : undefined;
@@ -49,15 +51,16 @@ export function RoundAnswers({
           className="min-w-0 rounded-box border border-base-300 p-3"
         >
           <p className="text-xl font-bold wrap-anywhere">
-            {answer.word ?? "未作答"}
+            {answer.word ?? t.answers.unanswered}
           </p>
           <p className="mt-2 text-sm wrap-anywhere">
-            {answer.name} · {answer.forfeited ? "已弃权" : "有效"} · +
-            {answer.points} 分
+            {answer.name} ·{" "}
+            {answer.forfeited ? t.answers.forfeited : t.answers.valid} ·{" "}
+            {t.answers.points(answer.points)}
           </p>
           {groupByPlayer.has(answer.id) && (
             <p className="mt-1 text-sm font-semibold">
-              同词组 {groupByPlayer.get(answer.id)! + 1}
+              {t.answers.groupTag(groupByPlayer.get(answer.id)! + 1)}
             </p>
           )}
         </li>
@@ -70,7 +73,7 @@ export function RoundAnswers({
         grid gap-2
         sm:grid-cols-2
       "
-      aria-label="有效同词组"
+      aria-label={t.answers.groupsLabel}
     >
       {matchedGroups.map((group, index) => (
         <li
@@ -81,8 +84,11 @@ export function RoundAnswers({
           key={group.word}
         >
           <p className="text-sm font-semibold">
-            同词组 {index + 1} · {group.playerIds.length} 人 · 每人 +
-            {group.points}
+            {t.answers.groupSummary(
+              index + 1,
+              group.playerIds.length,
+              group.points,
+            )}
           </p>
           <p className="mt-1 text-xl font-bold wrap-anywhere">{group.word}</p>
         </li>
@@ -93,14 +99,16 @@ export function RoundAnswers({
     <section className="relative space-y-3" data-reveal={feedback}>
       {feedback && matchedGroups.length > 0 && <GroupStars key={feedback} />}
       <h3 className="font-bold">
-        第 {round.number} 轮 · {round.completed ? "已揭晓" : "已开始，未完成"}
+        {round.completed
+          ? t.answers.roundCompleted(round.number)
+          : t.answers.roundIncomplete(round.number)}
       </h3>
       {(mode !== "reference" || remaining.length === 0) && groups}
       {answers(visible)}
       {remaining.length > 0 ? (
         <details className="collapse-arrow collapse border border-base-300">
           <summary className="collapse-title font-semibold">
-            查看全部 {round.answers.length} 条线索与同词组
+            {t.answers.expandAll(round.answers.length)}
           </summary>
           <div className="collapse-content space-y-3">
             {mode === "reference" && groups}

@@ -1,171 +1,71 @@
+中文 | [English](./README.en.md)
+
 # Same word · 同词
 
-一个通过浏览器游玩的匿名多人联想游戏。服务端统一计时、隐藏作答并裁决计分。
+一个通过浏览器游玩的匿名多人联想游戏。无需注册，创建房间后把链接发给朋友即可开局；
+服务端统一计时、隐藏作答并裁决计分。
 
-## Development
+- 前端：React + Vite + Tailwind CSS + daisyUI
+- 后端：Fastify + Socket.IO，内存存储，单进程
+- 共享：Zod 校验的命令与公开协议
+
+## 游戏玩法
+
+1. 设置展示 ID，一人创建房间，其他人用 6 位房间码或邀请链接加入。
+2. 全员在线并准备后倒数 3 秒开局，默认 8 人、最多 20 轮、每轮 60 秒。
+3. 第一轮各自随意写一个词；之后每轮参考上一轮的全部答案，写一个能与所有人“连起来”的词。
+4. 全员写出同一个词即成功，每人 +100；否则每个至少两人的同词组各得 +1。
+5. 词语忽略首尾空白与大小写，且同一局内不能重复使用之前轮次出现过的词。
+6. 到期未答视为弃权，只淘汰本人，不影响其他玩家继续。
+
+完整规则、配置范围与计分细节见 [`docs/game-rules.md`](docs/game-rules.md)。
+
+## 部署
 
 需要 Node.js 24 和 pnpm 12。
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
-```
-
-打开 <http://127.0.0.1:5173>。Vite 将 API 和 Socket.IO 代理到同源的 Fastify 服务（3000 端口）。
-
-```sh
-pnpm lint
-pnpm lint:fix
-pnpm typecheck
-pnpm test:rules
-pnpm test:network
 pnpm build
 pnpm start
 ```
 
-生产页面和 API 均由 <http://127.0.0.1:3000> 提供，`GET /health` 返回健康状态。
-`src/client` 仅依赖共享协议；`pnpm typecheck` 同时检查浏览器和共享模块不可导入服务端状态。
+打开 <http://127.0.0.1:3000>，页面与 API 由同一个服务提供。
 
-`pnpm lint` checks JavaScript and TypeScript sources, tests, scripts, and configuration with
-the recommended ESLint and TypeScript rules, React Hooks rules, Prettier formatting, and
-`simple-import-sort` import/export ordering. `pnpm lint:fix` applies available automatic fixes.
-Prettier uses single quotes as configured in `.prettierrc.json`; its recommended ESLint
-integration disables conflicting formatting rules. Build output and local tooling directories
-are excluded from linting.
+生产环境要点：
 
-## Architecture
+- 复制 `.env.example` 为 `.env`，把 `PUBLIC_ORIGIN` 设为浏览器访问的完整 HTTPS 来源（不带结尾 `/`）。
+- 生产会话 Cookie 启用 Secure、HttpOnly 与 SameSite=Strict，公开服务必须经过 HTTPS。
+- 只能运行一个进程，不启用 Node cluster 或多副本；状态全部在内存，重启会清空进行中的房间。
+- Nginx 反向代理示例见 [`deploy/nginx.conf`](deploy/nginx.conf)，`/api/`、`/socket.io/` 与 `/health` 转发到 Node。
 
-- `src/client`：React、Vite、Tailwind CSS、daisyUI。
-- `src/server`：Fastify、Socket.IO、内存会话和权威游戏规则。
-- `src/shared`：Zod 命令校验、公开协议与统一词语规则。
+环境变量、Nginx 细节与上线检查见 [`docs/deployment.md`](docs/deployment.md)。
 
-只运行一个 Node.js 服务进程。所有状态保存在内存，重启会清空房间、会话、积分和历史。
-
-## Play
-
-1. 在两个独立浏览器（或普通窗口与隐身窗口）中打开页面，分别设置展示 ID。
-2. 一人创建房间，另一人输入房间码或打开邀请链接加入。
-3. 所有成员在线并点击准备后，倒数 3 秒开局，无须达到房间容量上限。等待中的未准备成员离开或过期移除后，也会按剩余成员重新检查开局条件。
-4. 第一轮各自随意写一个词，计作第 1 轮。以后参考上一轮所有答案，寻找连接词。
-5. 每轮最多成功提交一次；全员提前提交立即揭晓，否则到期未答者弃权。
-6. 全员同词立即成功；结果页每人独立确认返回，全员重新准备开始新的一局。
-
-邀请链接页面自动使用链接中的房间码，入房表单仅展示“展示 ID”和“加入房间”按钮，
-不提供创建房间按钮或房间码输入。邀请失效时可通过“回到首页”重新创建房间或输入其他房间码。
-
-默认容量 8 人、最多 20 轮、每轮 60 秒。词语去除首尾空白并忽略大小写；
-`Apple` 与 `apple` 同词，`苹果` 与 `蘋果` 不同词。展示原文保留大小写。
-词语和展示 ID 为 1～20 个 Unicode 码点，不能包含换行或控制字符；同房间 ID 忽略大小写后唯一。
-作答隐藏至揭晓，成功提交后不可修改；非法输入保留重试机会且不会延长截止时间。
-
-非全员同词时，每个至少两人的同词组内每人 +1 分；全员同词每人 +100 分，不再叠加 +1。
-最后一轮同词仍然成功。轮数用尽仍未同词，或有效玩家不足两人时失败。
-非终局揭晓持续 5 秒，再进入下一轮。下一局轮数、积分及词语历史重新初始化。
-匿名 Cookie 在刷新后恢复原身份。单浏览器多个标签页共用身份，新标签页接管旧标签页。
-
-房主可在准备阶段设置整数配置：容量 2～99、最多轮数 2～999、每轮 1～600 秒。
-容量不能小于现有人数，保存配置清除全员准备。倒数期间不可加入、改名或改配置；对局中不可中途加入。
-同房间可同时有多个同词组，各组独立计分。主动离开、放弃本局或到期未答只淘汰本人，不能在本局复活。
-提交后、揭晓前弃权的答案仍会揭晓，但不参与本轮分组与加分；之前的积分保留。
-揭晓后退出不重算积分。剩余至少两人且全部同词即可成功，结果同时列出初始、完成与弃权人数。
-房主离开或断线时，按加入顺序转交给在线成员；无人在线则暂空缺，下一位重连者接任。
-
-本局之前任意玩家已成功提交并揭晓的词都不可重用，包括后来弃权者的答案。
-历史词同样去除首尾空白并忽略大小写；失败提示为“发送失败：该词已在之前轮次出现”，
-保留草稿、未答状态和原截止时间，可以改词重试。同轮相同新词合法，新局清空禁词集合。
-历史入口支持当前局与最近结束局，每次最多 20 轮，也可从指定轮次读取；当前未揭晓答案不可查询。
-结果页显示结束原因、共同词、初始与有效人数、弃权、耗时、开始／结束时间、已开始轮数和并列积分。
-人数不足时，未完成轮次也会展示已接受答案与未答情况，但不计本轮分数。
-个人确认结果不改变房间状态：他人可以返回和修改配置，下一局仍需全员在线且重新准备。
-
-## Appearance
-
-页面从 320px 单列布局开始，在宽屏扩展；页头和长文本可换行，主题弹层限制在视口内。
-输入字号至少 16px，主要按钮和表单控件的触控区域至少 44×44px。操作区保持文档流，
-底部为设备安全区域留白；准备进度和准备按钮位于完整成员列表之前，成员与房间设置可按需展开。
-所有核心流程均可在无动画时完成。
-对局按轮次和时间、上轮线索、作答、玩家状态排序；大量线索先显示 4 条，明确入口可展开全部答案与归属。
-展开线索或收到其他玩家状态时不重置草稿和焦点。结果先展示原因、共同词、人数、轮数与耗时，
-个人返回按钮位于完整排名之前；并列积分、时间、弃权和最终答案均保留查看入口。
-输入与提交保持原生表单和纵向滚动，错误与字段关联；桌面小视口检查不替代真实手机软键盘验收。
-准备确认、当前秒开局倒数、服务端接受作答、揭晓与新轮次提供短暂反馈；提交中单独显示等待，
-失败保留草稿，不提前显示锁定或奖励。开局仍为 3 秒，普通揭晓仍为 5 秒，动画不增加等待。
-已完成轮次的每个有效同词组都有编号、词语、人数及实际加分，并在对应答案上静态强调；
-实时新揭晓时各组同时轻弹。分组与分数直接取自服务端，大小写原文保留，结算前弃权者不计入；
-最后一轮部分同词后失败仍显示实际 +1，未完成轮次不产生匹配奖励。历史和上轮参考保持静态。
-实时成功时突出共同词和实际 +100，并以独立 canvas 播放一次有限彩带，成功轮不叠加 +1。
-失败只保留真实原因、实际积分与柔和过渡。彩带不阻挡立即确认，2～3 秒内清理；
-窄屏最多 60 个、宽屏最多 120 个粒子，两侧共享预算；部分同词的星点共享 12／24 个预算。
-系统“减少动态效果”会停用位移、星点和彩带，保留分组、分数及完整操作；运行中开启会立即取消，
-关闭不会补播。隐藏页面、断线、接管、确认返回或阶段失效都会清理效果；刷新、恢复、历史与参考不补播。
-
-页头“主题”按钮提供当前 daisyUI 版本的全部内置主题，手动选择保存在本浏览器，刷新后继续使用。
-默认选择“跟随系统”：浅色偏好使用 light，深色偏好使用 dark；系统偏好变化时自动切换。
-选择“跟随系统”会清除手动选择。主题只影响本人的页面，不改变房间或其他玩家的设置。
-
-## Recovery and lifecycle
-
-刷新或短暂断线不暂停计时，也不延长作答时间。已提交答案继续有效；未提交者仍须在原截止时间前恢复，
-到期即弃权。已弃权玩家可以查看进度，但不能重新参赛。断线时禁止提交并保留当前页面的输入草稿。
-同一会话的新标签页接管身份，旧标签页停止操作；提交有确认和最多三次同请求重试，恢复以服务端快照为准。
-未入房的邀请页面在断线时取消邀请检查，重连后重新检查有效性，并保留已输入的展示 ID。
-
-准备阶段断线身份保留 120 秒；终局后仍断线的成员从终局起重新保留 120 秒。
-空房立即销毁并取消计时器；无房间关联且连续闲置 24 小时的匿名会话释放。
-每个房间只保留当前局及最近结束局，之后更早的历史与提交确认释放。
-重启服务会立即清空全部状态；旧 Cookie 会获得新会话，旧邀请链接显示房间不存在或已失效。
-
-## Production
+## 二次开发
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm build
-pnpm start
+pnpm dev          # 服务端 watch + Vite，打开 http://127.0.0.1:5173
+pnpm lint         # ESLint + Prettier + 导入排序
+pnpm typecheck    # 导入边界 + 客户端/测试/服务端类型检查
+pnpm test:rules   # 词语、计分、边界与计时器
+pnpm test:network # Socket.IO 集成：容量、隐私、接管与历史权限
 ```
 
-本地生产预览打开 <http://127.0.0.1:3000>。服务启动时自动读取可选的 `.env`。
-实际部署将 `.env.example` 复制为 `.env`，把 `PUBLIC_ORIGIN` 设置为浏览器访问的完整 HTTPS 来源（不带结尾 `/`）。
-`HOST` 默认为 `127.0.0.1`，`PORT` 默认为 `3000`；容器需要时设置 `HOST=0.0.0.0`。
-生产会话 Cookie 启用 Secure、HttpOnly 和 SameSite=Strict，因此公开服务必须经过 HTTPS。
-来源校验同时保护 HTTP 与 Socket.IO；展示 ID、客户端声明的 playerId 和 socket.id 都不作为凭据。
-`GET /api/rooms/:code` 仅返回邀请是否有效，不返回成员或游戏信息。
+| 目录         | 职责                                           |
+| ------------ | ---------------------------------------------- |
+| `src/client` | 页面、实时反馈、主题与界面语言，仅依赖共享协议 |
+| `src/server` | HTTP 与 Socket.IO 接入、权威游戏规则、内存会话 |
+| `src/shared` | Zod 命令校验、公开协议与统一词语规则           |
 
-只能部署一个服务进程，不运行 Node cluster 或多副本。进程管理器应保持单实例，并允许 WebSocket 和长轮询。
-HTTPS 可由平台或 Nginx 终止。`sameword.example.com` 的 Nginx 配置见 [`deploy/nginx.conf`](deploy/nginx.conf)：
-前端文件由 Nginx 直接提供，`/api/`、`/socket.io/` 和 `/health` 保留原路径转发到 `127.0.0.1:3000`。
-该部署的 `.env` 设置为：
+新增或修改命令时，从 `src/shared/protocol.ts` 开始，再改 `src/server/app.ts` 的分发与
+`src/server/rooms.ts` / `src/server/game.ts` 的规则，最后更新客户端与中英文语言包
+`src/client/i18n/messages.ts`。
 
-```dotenv
-NODE_ENV=production
-HOST=127.0.0.1
-PORT=6999
-PUBLIC_ORIGIN=https://sameword.example.com
-```
+模块划分、协议、HTTP 接口与测试说明见 [`docs/architecture.md`](docs/architecture.md)
+和 [`docs/development.md`](docs/development.md)。
 
-- `root` 指向 `/path/to/same-word/dist/client`，与 Vite 构建输出一致，而不是 `dist`。
-- 配置文件须由 Nginx 的 `http` 块加载，不能把包含 `map` 的整份配置放入 `server` 块。
-- `/assets/` 中带哈希的构建资源缓存一年，缺失文件返回 404；页面使用 `no-cache`，邀请链接刷新时回退到 `index.html`。
-- 代理关闭 Nginx 缓存并保留 API 返回的 `Cache-Control: no-store`；Socket.IO 同时支持 WebSocket 升级与长轮询，读取超时为 75 秒。
+## 更多文档
 
-构建并启动单个 Node.js 服务后，在服务器检查配置并重载 Nginx：
-
-```sh
-sudo nginx -t && sudo systemctl reload nginx
-curl -fsS https://sameword.example.com/health
-```
-
-`GET /health` 可用于健康检查。不要将 Cookie 或 Socket.IO 负载写入访问日志。
-服务端控制台日志统一显示 ISO 时间、INFO／WARN／ERROR 级别与来源前缀，终端支持时为级别着色。
-房间没有独立名称，以房间码作为前缀，例如 `[JAL7YH] Alice submitted round 1`。
-日志记录服务启停、会话创建与过期、连接与接管、房间创建与销毁、成员和房主变更、配置、准备与倒数、
-作答接受、弃权、轮次开始、超时、终局及失败操作；不记录高频状态同步、Cookie、会话令牌或答案正文。
-发布、回滚或重启都会清空正在进行的房间；旧链接会显示失效提示，并提供回首页入口。
-浏览器不会用本地草稿、分数或成员列表重建对局。
-
-## Focused verification
-
-`pnpm test:rules` 验证词语、计分、历史词、截止边界、弃权、确认重放与过期计时器。
-`pnpm test:network` 使用真实 Socket.IO 客户端验证配置边界、99 人容量、隐私、身份恢复、接管、历史权限和内存清理。
-浏览器验收使用独立 Cookie 会话，检查两人完整流程、多人部分同词、历史词错误重试、弃权、刷新和新一局。
-`pnpm exec tsx --test src/client/presentation.test.ts` 定向验证实时反馈、恢复基线、重复快照、终局与取消边界。
-生产构建同时运行严格类型检查与浏览器导入边界检查。界面使用原生表单、可见状态文本和焦点反馈，庆祝无持续循环动画。
+[`docs/`](docs/README.md) 收录游戏规则、架构、会话生命周期、界面细节、开发与部署说明。
+需求与变更记录在 `openspec/` 中维护。

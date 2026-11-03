@@ -165,7 +165,7 @@ export class Rooms {
       reject("WRONG_PHASE", "只能在准备阶段修改配置");
     if (room.hostId !== session.id) reject("NOT_HOST", "仅房主可以修改配置");
     if (config.capacity < room.members.size)
-      reject("INVALID_INPUT", "容量不能低于当前成员人数");
+      reject("CONFIG_BELOW_MEMBERS", "容量不能低于当前成员人数");
     room.config = { ...config };
     log(
       `Settings updated: capacity=${config.capacity}, rounds=${config.maxRounds}, time=${config.roundSeconds}s`,

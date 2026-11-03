@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { HistoryPage, RoomView } from "../shared/protocol.js";
+import { useLocale } from "./i18n/locale.js";
 import { RoundAnswers } from "./round-answers.js";
 
 export function History({
@@ -10,12 +11,13 @@ export function History({
   room: RoomView;
   disabled: boolean;
 }) {
+  const { t } = useLocale();
   const [selected, setSelected] = useState(
     room.game?.id ?? room.result?.gameId ?? "",
   );
   const [page, setPage] = useState<HistoryPage | null>(null);
   const [target, setTarget] = useState(1);
-  const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
@@ -25,19 +27,22 @@ export function History({
     const controller = new AbortController();
     requestRef.current = controller;
     setLoading(true);
-    setError("");
+    setHistoryError(false);
     setPage(null);
     try {
       const response = await fetch(
         `/api/rooms/${room.code}/games/${gameId}/rounds?after=${after}`,
         { signal: controller.signal },
       );
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (controller.signal.aborted) return;
-      if (!response.ok) throw new Error(data.message ?? "无法读取历史");
+      if (!response.ok || data === null) {
+        setHistoryError(true);
+        return;
+      }
       setPage(data);
-    } catch (error) {
-      if (!controller.signal.aborted) setError((error as Error).message);
+    } catch {
+      if (!controller.signal.aborted) setHistoryError(true);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
@@ -54,12 +59,12 @@ export function History({
           if (!open) void load();
         }}
       >
-        {open ? "收起历史" : "查看轮次历史"}
+        {open ? t.history.close : t.history.open}
       </button>
       {open && (
         <div className="mt-5 space-y-4">
           <label className="fieldset">
-            选择对局
+            {t.history.selectGame}
             <select
               className="select w-full"
               value={selected}
@@ -68,9 +73,11 @@ export function History({
                 void load(0, event.target.value);
               }}
             >
-              {room.game && <option value={room.game.id}>当前对局</option>}
+              {room.game && (
+                <option value={room.game.id}>{t.history.currentGame}</option>
+              )}
               {room.result && (
-                <option value={room.result.gameId}>最近结束的一局</option>
+                <option value={room.result.gameId}>{t.history.lastGame}</option>
               )}
             </select>
           </label>
@@ -81,7 +88,7 @@ export function History({
               void load(target - 1);
             }}
           >
-            <label htmlFor="history-round">从指定轮次查看</label>
+            <label htmlFor="history-round">{t.history.fromRound}</label>
             <input
               id="history-round"
               className="input"
@@ -94,18 +101,18 @@ export function History({
               onChange={(event) => setTarget(event.target.valueAsNumber)}
             />
             <button className="btn" disabled={disabled || loading}>
-              读取轮次
+              {t.history.loadRound}
             </button>
           </form>
-          {error && (
+          {historyError && (
             <p className="alert alert-error" role="alert">
-              {error}
+              {t.history.failed}
             </p>
           )}
           {loading ? (
-            <p role="status">正在读取历史…</p>
+            <p role="status">{t.history.loading}</p>
           ) : page?.rounds.length === 0 ? (
-            <p>还没有已揭晓轮次。</p>
+            <p>{t.history.empty}</p>
           ) : (
             page?.rounds.map((round) => (
               <RoundAnswers key={round.number} round={round} mode="history" />
@@ -117,10 +124,10 @@ export function History({
               disabled={disabled || loading}
               onClick={() => void load(page.nextAfter)}
             >
-              接下来 20 轮
+              {t.history.next}
             </button>
           )}
-          <p className="text-sm">每次最多读取 20 轮，仅显示已揭晓答案。</p>
+          <p className="text-sm">{t.history.note}</p>
         </div>
       )}
     </section>

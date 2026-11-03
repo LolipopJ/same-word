@@ -1,29 +1,36 @@
 import { useEffect, useState } from "react";
 
+import { useLocale } from "./i18n/locale.js";
+import type { Dictionary } from "./i18n/messages.js";
+
+type StatusKey = keyof Pick<
+  Dictionary["invite"],
+  "checking" | "ready" | "invalid" | "unavailable"
+>;
+
 export function InviteStatus({ code }: { code: string }) {
-  const [status, setStatus] = useState("正在检查邀请…");
+  const { t } = useLocale();
+  const [status, setStatus] = useState<StatusKey>("checking");
   useEffect(() => {
     const controller = new AbortController();
     void fetch(`/api/rooms/${encodeURIComponent(code)}`, {
       signal: controller.signal,
     })
       .then((response) => {
-        if (response.ok) setStatus("邀请已就绪，输入展示 ID 后加入房间。");
-        else if (response.status === 404)
-          setStatus("房间不存在或已失效。请重新创建房间，或使用新的邀请。");
-        else setStatus("暂时无法检查邀请，请重新连接后重试。");
+        if (response.ok) setStatus("ready");
+        else if (response.status === 404) setStatus("invalid");
+        else setStatus("unavailable");
       })
       .catch(() => {
-        if (!controller.signal.aborted)
-          setStatus("暂时无法检查邀请，请重新连接后重试。");
+        if (!controller.signal.aborted) setStatus("unavailable");
       });
     return () => controller.abort();
   }, [code]);
   return (
     <p className="alert text-sm" role="status">
-      {status}
+      {t.invite[status]}
       <a className="btn btn-ghost" href="/">
-        回到首页
+        {t.invite.backHome}
       </a>
     </p>
   );

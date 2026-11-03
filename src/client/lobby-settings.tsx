@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { RoomView } from "../shared/protocol.js";
 import type { Action } from "./App.js";
+import { override, useLocale } from "./i18n/locale.js";
 
 export function LobbySettings({
   room,
@@ -14,6 +15,7 @@ export function LobbySettings({
   disabled: boolean;
   action: Action;
 }) {
+  const { t } = useLocale();
   const [name, setName] = useState(
     room.members.find((member) => member.id === playerId)?.name ?? "",
   );
@@ -29,10 +31,14 @@ export function LobbySettings({
         className="fieldset gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          void action("player:rename", { name });
+          void action(
+            "player:rename",
+            { name },
+            override("INVALID_INPUT", "invalidName"),
+          );
         }}
       >
-        <label htmlFor="rename">修改展示 ID</label>
+        <label htmlFor="rename">{t.settings.renameLabel}</label>
         <input
           id="rename"
           className="input w-full"
@@ -41,7 +47,7 @@ export function LobbySettings({
           aria-describedby="form-error"
         />
         <button className="btn" disabled={disabled || room.phase !== "WAITING"}>
-          保存展示 ID
+          {t.settings.renameSave}
         </button>
       </form>
       {room.hostId === playerId ? (
@@ -49,15 +55,34 @@ export function LobbySettings({
           className="fieldset gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            void action("room:configure", config);
+            void action(
+              "room:configure",
+              config,
+              override("INVALID_INPUT", "invalidConfig"),
+            );
           }}
         >
-          <p className="font-semibold">房主配置 · 保存后全员重新准备</p>
+          <p className="font-semibold">{t.settings.hostConfig}</p>
           {(
             [
-              { key: "capacity", label: "容量", min: 2, max: 99 },
-              { key: "maxRounds", label: "最多轮数", min: 2, max: 999 },
-              { key: "roundSeconds", label: "每轮秒数", min: 1, max: 600 },
+              {
+                key: "capacity",
+                label: t.settings.capacity,
+                min: Math.max(2, room.members.length),
+                max: 99,
+              },
+              {
+                key: "maxRounds",
+                label: t.settings.maxRounds,
+                min: 2,
+                max: 999,
+              },
+              {
+                key: "roundSeconds",
+                label: t.settings.roundSeconds,
+                min: 1,
+                max: 600,
+              },
             ] as const
           ).map((field) => (
             <label className="fieldset" key={field.key}>
@@ -83,13 +108,11 @@ export function LobbySettings({
             className="btn"
             disabled={disabled || room.phase !== "WAITING"}
           >
-            保存配置
+            {t.settings.save}
           </button>
         </form>
       ) : (
-        <p className="self-center text-sm">
-          配置由房主调整。房主离线或离开后，转交给最早加入的在线成员。
-        </p>
+        <p className="self-center text-sm">{t.settings.notHost}</p>
       )}
     </div>
   );

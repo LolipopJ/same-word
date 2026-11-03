@@ -38,6 +38,7 @@ export type Command = keyof typeof commands;
 export type Payload<K extends Command> = z.infer<(typeof commands)[K]>;
 export type ErrorCode =
   | "INVALID_INPUT"
+  | "CONFIG_BELOW_MEMBERS"
   | "SESSION_REQUIRED"
   | "TAKEN_OVER"
   | "ROOM_NOT_FOUND"

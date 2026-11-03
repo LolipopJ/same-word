@@ -10,6 +10,7 @@ import type {
   ServerToClientEvents,
   Snapshot,
 } from "../shared/protocol.js";
+import { LocaleError } from "./i18n/locale.js";
 import type { RoomUpdate } from "./room-update.js";
 
 export function useRoom() {
@@ -32,7 +33,7 @@ export function useRoom() {
     async function initialize() {
       try {
         const response = await fetch("/api/session", { method: "POST" });
-        if (!response.ok) throw new Error("会话创建失败");
+        if (!response.ok) throw new Error("session failed");
         if (alive) connection.connect();
       } catch {
         if (alive) setStatus("offline");
@@ -86,7 +87,7 @@ export function useRoom() {
   ): Promise<Ack> {
     const connection = socketRef.current;
     if (!connection?.connected || status !== "online")
-      throw new Error("连接已中断，请等待恢复后操作");
+      throw new LocaleError("connectionLost");
     const attempts = event === "game:submit" ? 3 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
@@ -98,10 +99,10 @@ export function useRoom() {
         )(event, payload);
       } catch {
         if (attempt === attempts - 1 || !connection.connected)
-          throw new Error("未收到确认，请检查连接；已接受的答案会在恢复后显示");
+          throw new LocaleError("submitUnconfirmed");
       }
     }
-    throw new Error("未收到确认");
+    throw new LocaleError("submitUnconfirmed");
   }
   return { snapshot: update?.snapshot ?? null, update, status, send, offset };
 }

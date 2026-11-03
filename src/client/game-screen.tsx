@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { GameView } from "../shared/protocol.js";
 import type { Action } from "./App.js";
+import { override, useLocale } from "./i18n/locale.js";
 import type { Feedback } from "./presentation.js";
 import { RoundAnswers } from "./round-answers.js";
 
@@ -14,6 +15,7 @@ export function Remaining({
   offset: number;
   emphasize?: boolean;
 }) {
+  const { t } = useLocale();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 200);
@@ -23,7 +25,7 @@ export function Remaining({
   return (
     <span
       className="font-mono text-3xl font-bold tabular-nums"
-      aria-label="剩余秒数"
+      aria-label={t.game.remainingLabel}
     >
       <span
         key={seconds}
@@ -32,7 +34,7 @@ export function Remaining({
       >
         {seconds}
       </span>{" "}
-      秒
+      {t.game.remainingSuffix}
     </span>
   );
 }
@@ -51,6 +53,7 @@ export function GameScreen({
   error: string;
   feedback: Feedback | null;
 }) {
+  const { t } = useLocale();
   const [word, setWord] = useState("");
   const [submitting, setSubmitting] = useState(false);
   return (
@@ -66,13 +69,11 @@ export function GameScreen({
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-2xl font-black">
-            第 {game.round} / {game.config.maxRounds} 轮
+            {t.game.roundTitle(game.round, game.config.maxRounds)}
           </h1>
           <Remaining deadlineAt={game.deadlineAt} offset={offset} />
         </div>
-        {game.phase === "REVEALING" && (
-          <p role="status">一起揭晓，5 秒后进入下一轮。</p>
-        )}
+        {game.phase === "REVEALING" && <p role="status">{t.game.revealing}</p>}
         {game.previousRound && (
           <RoundAnswers
             round={game.previousRound}
@@ -93,7 +94,7 @@ export function GameScreen({
                 role="status"
                 data-confirm={feedback?.locked ? feedback.id : undefined}
               >
-                你已提交「{game.mine.answer}」。等待朋友们，答案已锁定。
+                {t.game.submitted(game.mine.answer)}
               </p>
             ) : (
               <form
@@ -101,18 +102,20 @@ export function GameScreen({
                 onSubmit={(event) => {
                   event.preventDefault();
                   setSubmitting(true);
-                  void action("game:submit", {
-                    gameId: game.id,
-                    round: game.round,
-                    requestId: crypto.randomUUID(),
-                    word,
-                  }).finally(() => setSubmitting(false));
+                  void action(
+                    "game:submit",
+                    {
+                      gameId: game.id,
+                      round: game.round,
+                      requestId: crypto.randomUUID(),
+                      word,
+                    },
+                    override("INVALID_INPUT", "invalidWord"),
+                  ).finally(() => setSubmitting(false));
                 }}
               >
                 <label htmlFor="word">
-                  {game.round === 1
-                    ? "随意想一个词，作为起点"
-                    : "连接上一轮的所有词，你会想到什么？"}
+                  {game.round === 1 ? t.game.firstPrompt : t.game.linkPrompt}
                 </label>
                 <input
                   id="word"
@@ -126,39 +129,36 @@ export function GameScreen({
                 />
                 {error && (
                   <a className="link text-error" href="#word">
-                    修改词语后重新提交
+                    {t.game.fixAndResubmit}
                   </a>
                 )}
-                <p id="word-hint">
-                  1～20 个字符 · 本局已揭晓的词不能再用 · 提交后无法修改
-                </p>
+                <p id="word-hint">{t.game.inputHint}</p>
                 <button className="btn btn-primary" disabled={disabled}>
-                  {submitting ? "正在提交…" : "提交词语"}
+                  {submitting ? t.game.submitting : t.game.submit}
                 </button>
               </form>
             )
           ) : (
             <p className="alert" role="status">
-              你已弃权，可以继续查看本局进度。
+              {t.game.forfeited}
             </p>
           ))}
         <p role="status">
-          已提交{" "}
-          {
+          {t.game.submittedCount(
             game.submittedIds.filter((id) =>
               game.players.some(
                 (player) => player.id === id && !player.forfeit,
               ),
-            ).length
-          }{" "}
-          / {game.players.filter((player) => !player.forfeit).length} 人
+            ).length,
+            game.players.filter((player) => !player.forfeit).length,
+          )}
         </p>
         <details
           className="collapse-arrow collapse border border-base-300"
           open={game.players.length <= 6}
         >
           <summary className="collapse-title font-semibold">
-            玩家状态与积分 · 查看全部 {game.players.length} 人
+            {t.game.playersSummary(game.players.length)}
           </summary>
           <div className="collapse-content">
             <ul
@@ -181,14 +181,14 @@ export function GameScreen({
                   "
                 >
                   <span className="min-w-0 flex-1 wrap-anywhere">
-                    {player.name} · {player.score} 分
+                    {t.game.playerLine(player.name, player.score)}
                   </span>
                   <span>
                     {player.forfeit
-                      ? "已弃权"
+                      ? t.game.playerForfeited
                       : game.submittedIds.includes(player.id)
-                        ? "已提交"
-                        : "思考中"}
+                        ? t.game.playerSubmitted
+                        : t.game.playerThinking}
                   </span>
                 </li>
               ))}

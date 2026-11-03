@@ -1,19 +1,10 @@
 import { useEffect, useRef } from "react";
 
 import type { Result } from "../shared/protocol.js";
+import { useLocale } from "./i18n/locale.js";
 import type { Feedback } from "./presentation.js";
 import { RoundAnswers } from "./round-answers.js";
 
-const reasons = {
-  success: "默契相遇！",
-  round_limit: "轮数已用完",
-  insufficient_players: "有效玩家不足 2 人",
-};
-const forfeitReasons = {
-  left: "离开房间",
-  voluntary: "主动弃权",
-  timeout: "超时未答",
-};
 export function Results({
   result,
   onConfirm,
@@ -23,6 +14,17 @@ export function Results({
   onConfirm: () => void;
   feedback: Feedback | null;
 }) {
+  const { t, format } = useLocale();
+  const reasons = {
+    success: t.results.reasonSuccess,
+    round_limit: t.results.reasonRoundLimit,
+    insufficient_players: t.results.reasonInsufficient,
+  };
+  const forfeitReasons = {
+    left: t.results.forfeitLeft,
+    voluntary: t.results.forfeitVoluntary,
+    timeout: t.results.forfeitTimeout,
+  };
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -39,7 +41,9 @@ export function Results({
         "
       >
         <p className="badge">
-          {result.reason === "success" ? "成功" : "本局结束"}
+          {result.reason === "success"
+            ? t.results.successBadge
+            : t.results.endedBadge}
         </p>
         <h1
           ref={headingRef}
@@ -69,32 +73,39 @@ export function Results({
           >
             {result.finalRound.groups.map((group) => (
               <p key={group.word}>
-                {group.playerIds.length} 人同词 · 每人 +{group.points} 分
+                {t.results.groupLine(group.playerIds.length, group.points)}
               </p>
             ))}
           </div>
         )}
         <p>
-          {result.initialCount} 人开始 · {result.finalCount} 人完成 ·{" "}
-          {result.forfeitCount} 人弃权
+          {t.results.summary(
+            result.initialCount,
+            result.finalCount,
+            result.forfeitCount,
+          )}
         </p>
         <p>
-          已开始 {result.roundsStarted} 轮 · 耗时{" "}
-          {(result.durationMs / 1000).toFixed(1)} 秒
+          {t.results.rounds(
+            result.roundsStarted,
+            format.decimal(result.durationMs / 1000, 1),
+          )}
         </p>
         <button className="btn mt-4 btn-primary" onClick={onConfirm}>
-          确认，回到准备
+          {t.results.confirm}
         </button>
-        <p className="text-sm">每个人独立确认。下一局仍需全员重新准备。</p>
+        <p className="text-sm">{t.results.confirmHint}</p>
         <details className="collapse-arrow collapse border border-base-300">
           <summary className="collapse-title font-semibold">
-            查看完整排名、时间与弃权明细
+            {t.results.detailsSummary}
           </summary>
           <div className="collapse-content space-y-4">
             <p className="text-sm">
-              开始：{new Date(result.startedAt).toLocaleString()}
+              {t.results.startedAt}
+              {format.dateTime(result.startedAt)}
               <br />
-              结束：{new Date(result.endedAt).toLocaleString()}
+              {t.results.endedAt}
+              {format.dateTime(result.endedAt)}
             </p>
             <ol className="space-y-2">
               {[...result.players]
@@ -104,23 +115,26 @@ export function Results({
                     key={player.id}
                     className="rounded-box bg-base-200 p-4 wrap-anywhere"
                   >
-                    第{" "}
-                    {1 +
-                      result.players.filter(
-                        (other) => other.score > player.score,
-                      ).length}{" "}
-                    名
+                    {t.results.rank(
+                      1 +
+                        result.players.filter(
+                          (other) => other.score > player.score,
+                        ).length,
+                    )}
                     {result.players.some(
                       (other) =>
                         other.id !== player.id && other.score === player.score,
                     )
-                      ? "（并列）"
+                      ? t.results.tied
                       : ""}{" "}
-                    · {player.name} · <strong>{player.score} 分</strong>
+                    · {player.name} ·{" "}
+                    <strong>{t.results.score(player.score)}</strong>
                     {player.forfeit && (
                       <p className="mt-1 text-sm">
-                        第 {player.forfeit.round} 轮 ·{" "}
-                        {forfeitReasons[player.forfeit.reason]}
+                        {t.results.forfeitLine(
+                          player.forfeit.round,
+                          forfeitReasons[player.forfeit.reason],
+                        )}
                       </p>
                     )}
                   </li>

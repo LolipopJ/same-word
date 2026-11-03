@@ -1,6 +1,7 @@
 import type { RoomView } from "../shared/protocol.js";
 import type { Action } from "./App.js";
 import { Remaining } from "./game-screen.js";
+import { useLocale } from "./i18n/locale.js";
 import { LobbySettings } from "./lobby-settings.js";
 import type { Feedback } from "./presentation.js";
 
@@ -19,6 +20,7 @@ export function LobbyScreen({
   action: Action;
   feedback: Feedback | null;
 }) {
+  const { t } = useLocale();
   const readyCount = room.members.filter(
     (member) => member.online && member.ready,
   ).length;
@@ -32,7 +34,7 @@ export function LobbyScreen({
         "
       >
         <div>
-          <p className="text-sm">邀请朋友，一起准备</p>
+          <p className="text-sm">{t.lobby.inviteHint}</p>
           <h1
             className="
               mt-1 text-3xl font-black tracking-widest
@@ -43,7 +45,7 @@ export function LobbyScreen({
           </h1>
         </div>
         <label className="fieldset">
-          邀请链接
+          {t.lobby.inviteLink}
           <input
             className="input w-full"
             readOnly
@@ -54,14 +56,14 @@ export function LobbyScreen({
         <div className="space-y-3 rounded-box bg-base-200 p-4">
           <p role="status" className="font-semibold">
             {room.phase === "COUNTDOWN"
-              ? "全员准备，一起出发！"
-              : `已准备 ${readyCount} / ${room.members.length} 人`}
+              ? t.lobby.allReady
+              : t.lobby.readyProgress(readyCount, room.members.length)}
           </p>
           <progress
             className="progress"
             value={readyCount}
             max={room.members.length}
-            aria-label="准备进度"
+            aria-label={t.lobby.readyProgressLabel}
           />
           {room.countdownAt !== null && (
             <Remaining
@@ -75,11 +77,13 @@ export function LobbyScreen({
             disabled={disabled || room.phase === "PLAYING"}
             onClick={() => void action("player:ready", { ready: !mine?.ready })}
           >
-            {mine?.ready ? "取消准备" : "准备"}
+            {mine?.ready ? t.lobby.cancelReady : t.lobby.ready}
           </button>
           <p className="text-sm">
-            全员在线并准备后开始 · 最多 {room.config.maxRounds} 轮 · 每轮{" "}
-            {room.config.roundSeconds} 秒
+            {t.lobby.startConditions(
+              room.config.maxRounds,
+              room.config.roundSeconds,
+            )}
           </p>
         </div>
         <details
@@ -87,7 +91,7 @@ export function LobbyScreen({
           open={room.members.length <= 6}
         >
           <summary className="collapse-title font-semibold">
-            朋友们 · {room.members.length}/{room.config.capacity} · 查看全部
+            {t.lobby.membersSummary(room.members.length, room.config.capacity)}
           </summary>
           <div className="collapse-content">
             <ul
@@ -111,15 +115,15 @@ export function LobbyScreen({
                 >
                   <span className="min-w-0 flex-1 wrap-anywhere">
                     {member.name}
-                    {member.id === room.hostId ? " · 房主" : ""}
-                    {member.id === playerId ? " · 你" : ""}
+                    {member.id === room.hostId ? ` · ${t.lobby.host}` : ""}
+                    {member.id === playerId ? ` · ${t.lobby.you}` : ""}
                   </span>
                   <span className="badge shrink-0">
                     {member.online
                       ? member.ready
-                        ? "已准备"
-                        : "未准备"
-                      : "断线"}
+                        ? t.lobby.memberReady
+                        : t.lobby.memberNotReady
+                      : t.lobby.memberOffline}
                   </span>
                 </li>
               ))}
@@ -128,7 +132,7 @@ export function LobbyScreen({
         </details>
         <details className="collapse-arrow collapse border border-base-300">
           <summary className="collapse-title font-semibold">
-            展示 ID 与房间设置
+            {t.lobby.settingsSummary}
           </summary>
           <div className="collapse-content">
             <LobbySettings
@@ -149,7 +153,7 @@ export function LobbyScreen({
             })
           }
         >
-          离开房间
+          {t.app.leave}
         </button>
       </div>
     </section>
