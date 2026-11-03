@@ -103,6 +103,13 @@ export default function App() {
             tracking-tight
           "
         >
+          <img
+            src="/icon.svg"
+            width="32"
+            height="32"
+            alt=""
+            className="size-8"
+          />
           {t.app.brand}
         </a>
         <div className="flex min-w-0 flex-wrap items-center gap-2">

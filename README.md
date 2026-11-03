@@ -1,6 +1,8 @@
+![同词相遇 / Same word — 不同的想法，同一个词](./docs/assets/readme-banner.png)
+
 中文 | [English](./README.en.md)
 
-# Same word · 同词
+# 同词相遇 · Same word
 
 一个通过浏览器游玩的匿名多人联想游戏。无需注册，创建房间后把链接发给朋友即可开局；
 服务端统一计时、隐藏作答并裁决计分。
@@ -26,6 +28,7 @@
 
 ```sh
 pnpm install --frozen-lockfile
+# 先复制 .env.example 为 .env，并填写真实 PUBLIC_ORIGIN
 pnpm build
 pnpm start
 ```
@@ -34,14 +37,15 @@ pnpm start
 
 生产环境要点：
 
-- 复制 `.env.example` 为 `.env`，把 `PUBLIC_ORIGIN` 设为浏览器访问的完整 HTTPS 来源（不带结尾 `/`）。
+- 复制 `.env.example` 为 `.env`，把 `PUBLIC_ORIGIN` 设为真实公网 HTTPS 来源，例如 `https://sameword.example.com`。构建与运行时使用同一个来源；未配置、非法、本地或示例来源会让生产构建失败。
+- `pnpm dev` 无需公开来源；本地生产预览保留产物中的真实 canonical，游戏交互需通过配置的 HTTPS 来源访问。
 - 生产会话 Cookie 启用 Secure、HttpOnly 与 SameSite=Strict，公开服务必须经过 HTTPS。
-- 只能运行一个进程，不启用 Node cluster 或多副本；状态全部在内存，重启会清空进行中的房间。
-- Nginx 反向代理示例见 [`deploy/nginx.conf`](deploy/nginx.conf)，`/api/`、`/socket.io/` 与 `/health` 转发到 Node。
+- 只运行一个进程，不启用 cluster 或多副本；重启会清空内存中的房间。
+- [Nginx 示例](deploy/nginx.conf) 保留接口反代，对文本启用 gzip；Node 本地预览不压缩。
 
 环境变量、Nginx 细节与上线检查见 [`docs/deployment.md`](docs/deployment.md)。
 
-## 二次开发
+## 开发
 
 ```sh
 pnpm install --frozen-lockfile

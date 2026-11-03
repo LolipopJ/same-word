@@ -597,3 +597,48 @@ test("cross-origin connections and unauthenticated sockets fail; production cook
   assert.match(response.headers["set-cookie"] as string, /HttpOnly/);
   assert.equal("token" in response.json(), false);
 });
+
+test("only the homepage is indexable, including HTTP handled by Socket.IO", async (t) => {
+  const { app } = await createApp({ production: true });
+  t.after(() => app.close());
+  await app.listen({ host: "127.0.0.1", port: 0 });
+  for (const method of ["GET", "HEAD"] as const) {
+    for (const url of ["/", "/?source=invite"]) {
+      const response = await fetch(`${app.listeningOrigin}${url}`, { method });
+      await response.arrayBuffer();
+      assert.equal(response.headers.get("x-robots-tag"), null, url);
+    }
+    for (const url of [
+      "/index.html",
+      "/health",
+      "/unknown",
+      "/en/",
+      "/rooms/abc",
+      "/rooms/abcdef",
+    ]) {
+      const response = await fetch(`${app.listeningOrigin}${url}`, {
+        method,
+        redirect: "manual",
+      });
+      await response.arrayBuffer();
+      assert.equal(response.headers.get("x-robots-tag"), "noindex", url);
+      assert.equal(
+        response.status,
+        url === "/health" ? 200 : url === "/index.html" ? 301 : 404,
+        url,
+      );
+      if (url === "/index.html")
+        assert.equal(response.headers.get("location"), "/");
+    }
+  }
+  for (const method of ["GET", "HEAD"]) {
+    for (const path of [
+      "/socket.io/?EIO=4&transport=polling",
+      "/socket.io/socket.io.js",
+    ]) {
+      const response = await fetch(`${app.listeningOrigin}${path}`, { method });
+      await response.arrayBuffer();
+      assert.equal(response.headers.get("x-robots-tag"), "noindex", path);
+    }
+  }
+});

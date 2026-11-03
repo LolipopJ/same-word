@@ -56,6 +56,11 @@ export async function createApp({
       },
     },
   );
+  // Prepend after Socket.IO attaches so its polling, client files and errors are covered too.
+  app.server.prependListener("request", (request, response) => {
+    if (request.url?.split("?")[0] !== "/")
+      response.setHeader("X-Robots-Tag", "noindex");
+  });
   app.post("/api/session", (request, reply) => {
     if (!sameOrigin(request.headers)) {
       log("Session request rejected: cross-origin request", null, "warn");
@@ -252,8 +257,16 @@ export async function createApp({
     await app.register(fastifyStatic, {
       root: fileURLToPath(new URL("../../dist/client/", import.meta.url)),
       wildcard: false,
+      globIgnore: ["index.html"],
     });
-    app.get("/rooms/:code", (_, reply) => reply.sendFile("index.html"));
+    app.get("/", (_, reply) => reply.sendFile("index.html"));
+    app.get("/index.html", (_, reply) => reply.redirect("/", 301));
+    app.get("/rooms/:code", (request, reply) => {
+      const { code } = request.params as { code: string };
+      return /^[A-Z2-9]{6}$/.test(code)
+        ? reply.sendFile("index.html")
+        : reply.callNotFound();
+    });
   }
   const cleanup = setInterval(() => sessions.cleanup(rooms.now().mono), 60_000);
   cleanup.unref();

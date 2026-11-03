@@ -3,7 +3,12 @@ import test from "node:test";
 
 import type { ErrorCode } from "../../shared/protocol.js";
 import { createFormat } from "./format.js";
-import { type ErrorDescriptor, errorTextFor, override } from "./locale.js";
+import {
+  detectLocale,
+  type ErrorDescriptor,
+  errorTextFor,
+  override,
+} from "./locale.js";
 import { messages } from "./messages.js";
 
 const errorCodes: ErrorCode[] = [
@@ -23,6 +28,36 @@ const errorCodes: ErrorCode[] = [
   "ALREADY_SUBMITTED",
   "HISTORICAL_WORD",
 ];
+
+test("home defaults to Chinese while invites detect the browser and choices persist", (t) => {
+  let saved: string | null = null;
+  const environment = {
+    localStorage: { getItem: () => saved },
+    location: { pathname: "/" },
+    navigator: { languages: ["zh-CN"] },
+  };
+  for (const [key, value] of Object.entries(environment)) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (original) Object.defineProperty(globalThis, key, original);
+      else Reflect.deleteProperty(globalThis, key);
+    });
+  }
+  for (const language of ["zh-CN", "en-US"]) {
+    environment.navigator.languages = [language];
+    assert.equal(detectLocale(), "zh");
+    environment.location.pathname = "/rooms/ABCDEF";
+    assert.equal(detectLocale(), language === "zh-CN" ? "zh" : "en");
+    environment.location.pathname = "/";
+  }
+  saved = "en";
+  assert.equal(detectLocale(), "en");
+  t.mock.method(environment.localStorage, "getItem", () => {
+    throw new Error("Storage blocked");
+  });
+  assert.equal(detectLocale(), "zh");
+});
 
 function leaves(value: unknown, path = ""): Map<string, unknown> {
   const result = new Map<string, unknown>();

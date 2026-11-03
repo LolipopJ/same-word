@@ -1,6 +1,8 @@
+![Same word / 同词相遇 — Different minds. One word.](./docs/assets/readme-banner.png)
+
 [中文](./README.md) | English
 
-# Same word
+# Same word · 同词相遇
 
 An anonymous, browser-based multiplayer word association game. No account needed — create a room,
 send the link to friends, and play. The server keeps the clock, hides answers until reveal,
@@ -28,6 +30,7 @@ Requires Node.js 24 and pnpm 12.
 
 ```sh
 pnpm install --frozen-lockfile
+# Copy .env.example to .env and configure a real PUBLIC_ORIGIN first.
 pnpm build
 pnpm start
 ```
@@ -36,7 +39,8 @@ Open <http://127.0.0.1:3000>; the same server serves both the page and the API.
 
 Production notes:
 
-- Copy `.env.example` to `.env` and set `PUBLIC_ORIGIN` to the full HTTPS origin users visit, without a trailing `/`.
+- Copy `.env.example` to `.env` and set `PUBLIC_ORIGIN` to the real public HTTPS origin (for example, `https://sameword.example.com`). Use the same origin at build time and runtime. A trailing slash is normalized; credentials, other paths, queries, fragments, missing values, local addresses, and example domains fail production builds. Vite loads mode-specific environment files from the repository root; process variables take priority.
+- `pnpm dev` needs no public origin. Local `pnpm start` serves the built files without changing their canonical or sharing URLs. To check game interactions, forward the configured HTTPS origin to the local service so origin checks and Secure cookies work.
 - Production session cookies are Secure, HttpOnly, and SameSite=Strict, so the public service must be served over HTTPS.
 - Run exactly one process — no Node cluster, no replicas. All state lives in memory, so a restart wipes games in progress.
 - An Nginx reverse-proxy example is in [`deploy/nginx.conf`](deploy/nginx.conf); `/api/`, `/socket.io/`, and `/health` are forwarded to Node.

@@ -4,6 +4,7 @@
 
 ```sh
 pnpm install --frozen-lockfile
+# 先复制 .env.example 为 .env 并配置真实 PUBLIC_ORIGIN
 pnpm build
 pnpm start
 ```
@@ -15,14 +16,16 @@ pnpm start
 
 将 `.env.example` 复制为 `.env` 并按需修改：
 
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `NODE_ENV` | — | 实际部署设置为 `production` |
-| `HOST` | `127.0.0.1` | 容器需要时设置为 `0.0.0.0` |
-| `PORT` | `3000` | 服务监听端口 |
-| `PUBLIC_ORIGIN` | — | 浏览器访问的完整 HTTPS 来源，不带结尾 `/` |
+| 变量            | 默认值      | 说明                                                                                         |
+| --------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| `NODE_ENV`      | —           | 实际部署设置为 `production`                                                                  |
+| `HOST`          | `127.0.0.1` | 容器需要时设置为 `0.0.0.0`                                                                   |
+| `PORT`          | `3000`      | 服务监听端口                                                                                 |
+| `PUBLIC_ORIGIN` | 必填        | 构建与运行时使用相同的真实公网 HTTPS 来源；末尾 `/` 会规范化，不含凭据、其他路径、参数或片段 |
 
 生产会话 Cookie 启用 Secure、HttpOnly 和 SameSite=Strict，因此公开服务必须经过 HTTPS。
+缺失、非法、本地或示例来源会让生产构建失败；`pnpm dev` 无需公开来源。本地预览保留产物声明的真实 canonical，
+不会写入本地访问地址。交互验收需通过配置的 HTTPS 来源访问，以满足同源校验和 Secure Cookie 要求。
 来源校验同时保护 HTTP 与 Socket.IO；展示 ID、客户端声明的 playerId 和 socket.id 都不作为凭据。
 
 ## 单实例要求
@@ -49,7 +52,10 @@ PUBLIC_ORIGIN=https://sameword.example.com
 
 - `root` 指向 `/path/to/same-word/dist/client`，与 Vite 构建输出一致，而不是 `dist`。
 - 配置文件须由 Nginx 的 `http` 块加载，不能把包含 `map` 的整份配置放入 `server` 块。
-- `/assets/` 中带哈希的构建资源缓存一年，缺失文件返回 404；页面使用 `no-cache`，邀请链接刷新时回退到 `index.html`。
+- `/assets/` 中带哈希的构建资源缓存一年，缺失文件返回 404；首页及六位大写房间邀请使用 `no-cache`。
+- 只有首页 `/` 允许索引；`/index.html` 301 到 `/`，其他普通 HTTP 响应统一带 `X-Robots-Tag: noindex`。房间格式为 `[A-Z2-9]{6}`，小写、无效房间码、未知页面和 `/en/` 返回 404，不再回退首页。
+- 头部按原始 `$request_uri` 判断首页及参数变体，不能改用内部文件处理时变化的 `$uri`；子 location 不单独设置 `add_header`，保留服务器级 `always` 规则。代理隐藏 Node 的同名头，避免重复。
+- Nginx 压缩 HTML、JS、CSS、XML、SVG 等文本，不重复压缩 PNG，不改变缓存；Node 本地预览不启用压缩。
 - 代理关闭 Nginx 缓存并保留 API 返回的 `Cache-Control: no-store`；Socket.IO 同时支持 WebSocket 升级与长轮询，
   读取超时为 75 秒。
 
@@ -66,3 +72,6 @@ curl -fsS https://sameword.example.com/health
 - 邀请链接可直接刷新，静态资源命中长缓存而页面不被缓存。
 - 两个独立浏览器可完成一局；断线重连后计时未延长。
 - 重启进程会让进行中的房间失效，请提前通知玩家。
+
+完整 GET/HEAD 路由矩阵、品牌图片生成、大陆网络与移动端抓取检查，以及百度/Bing 验证、仅首页提交和观察记录，见
+[`搜索索引与发布检查`](./search-indexability.md)。本地验证与公网抓取、实际收录和展现点击分别记录。

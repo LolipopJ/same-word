@@ -1,9 +1,12 @@
 # Same word
 
+Before developing, check [`docs/README.md`](./docs/README.md) for reference.
+
 ## Code and UI Conventions
 
 - Code, comments, commit messages, and PR text are in English.
 - Comments explain non-obvious constraints; do not narrate the code.
+- Don't add unnecessary text to root `README.md`, instead keep it concise and relevant. Useful information should be written in the appropriate documentation files in `docs/`.
 - Use the [daisyui skill](.agents/skills/daisyui/SKILL.md) for all frontend UI work. Start with daisyUI components/classes (`btn`, `card`, `input`), then use Tailwind utilities for spacing, sizing, and responsiveness. Avoid custom structures or alternative UI frameworks unless necessary.
 - Keep components modular and concerns separate. Put behavior in the layer that owns it rather than duplicating it.
 

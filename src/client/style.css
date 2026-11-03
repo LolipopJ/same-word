@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../scripts/search-indexability.ts";
 @plugin "daisyui" {
   themes: all;
 }

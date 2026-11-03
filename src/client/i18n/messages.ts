@@ -8,7 +8,10 @@ export type ClientErrorKey = "connectionLost" | "submitUnconfirmed";
 
 const zh = {
   document: {
-    title: "同词相遇 · Same Word",
+    title: "同词相遇 · 多人联机文字联想游戏",
+    description:
+      "同词相遇是一款免费的多人联机文字联想游戏。创建房间，邀请朋友各写一个词，从彼此的答案寻找连接，直到所有人写出同一个词。",
+    imageAlt: "同词相遇：和朋友从不同的词出发，在同一个词相遇。",
   },
   language: {
     button: "语言",
@@ -36,7 +39,13 @@ const zh = {
     heroLineOne: "不同的起点，",
     heroLineTwo: "同一个词。",
     heroDescription:
-      "各写一个词，从彼此的答案里寻找连接。你们的想法，会在第几轮相遇？",
+      "同词相遇是一款免费的多人联机文字联想游戏。各写一个词，从彼此的答案里寻找连接，直到所有人写出同一个词。",
+    inviteDescription:
+      "无需注册。输入展示 ID 创建房间，把邀请链接或 6 位房间码发给朋友；全员在线并准备后，一起开始。",
+    exampleTitle: "比如这样相遇",
+    exampleBody:
+      "第一轮，一人写「太阳」，另一人写「雨水」；下一轮，两人想到它们的连接，都写下「彩虹」，就成功同词了。",
+    requiresJavaScript: "开启 JavaScript 后即可创建房间，邀请朋友一起玩。",
     joinInviteTitle: "加入朋友的房间",
     createTitle: "开始一场默契实验",
     displayName: "展示 ID",
@@ -197,7 +206,10 @@ export type Dictionary = typeof zh;
 
 const en: Dictionary = {
   document: {
-    title: "Same Word · 同词相遇",
+    title: "Same Word · Multiplayer Word Association Game",
+    description:
+      "Same Word is a free multiplayer word association game. Create a room, invite friends, and connect each other's answers until everyone writes the same word.",
+    imageAlt: "Same Word: start with different words and meet at the same one.",
   },
   language: {
     button: "Language",
@@ -227,7 +239,14 @@ const en: Dictionary = {
     heroLineOne: "Different starts,",
     heroLineTwo: "the same word.",
     heroDescription:
-      "Writes one word, then finds a link between each other's answers. Which round will your minds meet in?",
+      "Same Word is a free multiplayer word association game. Each write a word, then connect each other's answers until everyone writes the same word.",
+    inviteDescription:
+      "No account needed. Pick a display ID, create a room, and send friends the invite link or 6-character code. Once everyone is online and ready, play together.",
+    exampleTitle: "One way to meet",
+    exampleBody:
+      "In round one, one player writes “sun” and another writes “rain”. Next round, both connect those clues and write “rainbow” — a successful match!",
+    requiresJavaScript:
+      "Enable JavaScript to create a room and play with friends.",
     joinInviteTitle: "Join a friend's room",
     createTitle: "Start an intuitive experiment",
     displayName: "Display ID",

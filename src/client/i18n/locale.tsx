@@ -27,14 +27,15 @@ export class LocaleError extends Error {
 
 const storageKey = "same-word-locale";
 
-function detectLocale(): Locale {
+export function detectLocale(): Locale {
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved && (locales as readonly string[]).includes(saved))
       return saved as Locale;
   } catch {
-    // Storage can be blocked; fall through to browser detection.
+    // A blocked preference store still uses the entry's default language.
   }
+  if (location.pathname === "/") return "zh";
   const preferred = navigator.languages?.[0] ?? navigator.language ?? "";
   return preferred.toLowerCase().startsWith("zh") ? "zh" : "en";
 }

@@ -44,6 +44,7 @@ export function HomeScreen({
           {t.home.heroLineTwo}
         </h1>
         <p className="text-base/relaxed">{t.home.heroDescription}</p>
+        <p className="text-sm/relaxed">{t.home.inviteDescription}</p>
       </section>
       <section className="card bg-base-100 shadow-sm card-border">
         <div
@@ -121,19 +122,24 @@ export function HomeScreen({
           </form>
         </div>
       </section>
-      <details
+      <section
         className="
-          collapse-arrow collapse border border-base-300 bg-base-100
+          card bg-base-100 shadow-sm card-border
           md:col-span-2
         "
       >
-        <summary className="collapse-title font-semibold">
-          {t.home.rulesSummary}
-        </summary>
-        <div className="collapse-content text-sm/relaxed">
-          {t.home.rulesBody}
+        <div
+          className="
+            card-body gap-3 p-4
+            sm:p-6
+          "
+        >
+          <h2 className="card-title">{t.home.rulesSummary}</h2>
+          <p className="text-sm/relaxed">{t.home.rulesBody}</p>
+          <h3 className="font-semibold">{t.home.exampleTitle}</h3>
+          <p className="text-sm/relaxed">{t.home.exampleBody}</p>
         </div>
-      </details>
+      </section>
     </div>
   );
 }
