@@ -144,17 +144,6 @@ export function LobbyScreen({
             />
           </div>
         </details>
-        <button
-          className="btn self-start"
-          disabled={disabled}
-          onClick={() =>
-            void action("room:leave", {}).then((ok) => {
-              if (ok) history.replaceState(null, "", "/");
-            })
-          }
-        >
-          {t.app.leave}
-        </button>
       </div>
     </section>
   );

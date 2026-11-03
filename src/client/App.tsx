@@ -27,6 +27,7 @@ export default function App() {
   const [error, setError] = useState<ErrorDescriptor | null>(null);
   const errorMessage = error ? errorText(error) : "";
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const leaveDialogRef = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(() =>
     sessionStorage.getItem("dismissed-result"),
@@ -98,6 +99,12 @@ export default function App() {
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <a
           href="/"
+          onClick={(event) => {
+            if (room) {
+              event.preventDefault();
+              leaveDialogRef.current?.showModal();
+            }
+          }}
           className="
             inline-flex min-h-11 items-center gap-2 text-xl font-black
             tracking-tight
@@ -112,19 +119,42 @@ export default function App() {
           />
           {t.app.brand}
         </a>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="badge h-auto badge-outline py-1 text-center">
-            {online
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
+          <span
+            className="
+              badge h-auto badge-outline py-1 text-center
+              aria-hidden:invisible
+              max-[390px]:data-[status=connecting]:hidden
+              max-[390px]:data-[status=online]:hidden
+            "
+            data-status={status}
+            aria-hidden={status === "connecting"}
+          >
+            {online || status === "connecting"
               ? t.app.statusOnline
               : status === "replaced"
                 ? t.app.statusReplaced
                 : t.app.statusReconnecting}
           </span>
+          {!room && inviteCode === null && (
+            <a
+              className="btn btn-square"
+              href="https://github.com/LolipopJ/same-word"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t.home.repository}
+              title={t.home.repository}
+            >
+              <svg className="size-5" viewBox="0 0 256 256" aria-hidden="true">
+                <use href="/toolbar-icons.svg#github-logo" />
+              </svg>
+            </a>
+          )}
           <LanguageSwitcher />
           <ThemeSwitcher />
         </div>
       </header>
-      {!online && (
+      {(status === "offline" || status === "replaced") && (
         <p className="mb-5 alert" role="status">
           {status === "replaced"
             ? t.app.replacedNotice
@@ -184,8 +214,8 @@ export default function App() {
               feedback={feedback}
             />
           )}
-          {room.game && (
-            <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap gap-3">
+            {room.game && (
               <button
                 className="btn"
                 disabled={!online || busy || !room.game.mine.active}
@@ -198,24 +228,57 @@ export default function App() {
               >
                 {t.app.forfeit}
               </button>
-              <button
-                className="btn"
-                disabled={!online || busy}
-                onClick={() =>
-                  void action("room:leave", {}).then((ok) => {
-                    if (ok) history.replaceState(null, "", "/");
-                  })
-                }
-              >
-                {t.app.leave}
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              className="btn"
+              disabled={!online || busy}
+              onClick={() => leaveDialogRef.current?.showModal()}
+            >
+              {t.app.leave}
+            </button>
+          </div>
           <History
             key={room.game?.id ?? room.result?.gameId ?? room.code}
             room={room}
             disabled={!online}
           />
+          <dialog
+            ref={leaveDialogRef}
+            id="leave-room-dialog"
+            className="modal"
+            aria-labelledby="leave-room-title"
+            aria-describedby="leave-room-description"
+          >
+            <div className="modal-box">
+              <h2 id="leave-room-title" className="text-lg font-bold">
+                {t.app.leaveTitle}
+              </h2>
+              <p id="leave-room-description" className="py-4">
+                {t.app.leaveDescription}
+              </p>
+              <form method="dialog" className="modal-action flex-wrap">
+                <button className="btn">{t.app.stay}</button>
+                <button
+                  type="button"
+                  className="btn btn-error"
+                  disabled={!online || busy}
+                  onClick={() => {
+                    leaveDialogRef.current?.close();
+                    void act(async () => {
+                      const ack = await send("room:leave", {});
+                      if (ack.ok) history.replaceState(null, "", "/");
+                      return ack;
+                    });
+                  }}
+                >
+                  {t.app.leave}
+                </button>
+              </form>
+            </div>
+            <form method="dialog" className="modal-backdrop">
+              <button>{t.app.stay}</button>
+            </form>
+          </dialog>
         </>
       )}
       {showResult && feedback?.success && (

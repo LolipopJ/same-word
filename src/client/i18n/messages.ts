@@ -10,17 +10,15 @@ const zh = {
   document: {
     title: "同词相遇 · 多人联机文字联想游戏",
     description:
-      "同词相遇是一款免费的多人联机文字联想游戏。创建房间，邀请朋友各写一个词，从彼此的答案寻找连接，直到所有人写出同一个词。",
+      "同词相遇是一款多人联机文字联想游戏。创建房间，邀请朋友各写一个词，从彼此的答案寻找连接，直到所有人写出同一个词。",
     imageAlt: "同词相遇：和朋友从不同的词出发，在同一个词相遇。",
   },
   language: {
-    button: "语言",
     label: "界面语言",
     zh: "中文",
     en: "English",
   },
   theme: {
-    button: "主题",
     label: "页面主题",
     system: "跟随系统",
   },
@@ -34,12 +32,15 @@ const zh = {
     reconnect: "重新连接",
     forfeit: "放弃本局，留在房间",
     leave: "离开房间",
+    leaveTitle: "离开当前房间？",
+    leaveDescription: "确定要离开当前房间并返回首页吗？",
+    stay: "留在房间",
   },
   home: {
     heroLineOne: "不同的起点，",
     heroLineTwo: "同一个词。",
     heroDescription:
-      "同词相遇是一款免费的多人联机文字联想游戏。各写一个词，从彼此的答案里寻找连接，直到所有人写出同一个词。",
+      "同词相遇是一款多人联机文字联想游戏。各写一个词，从彼此的答案里寻找连接，直到所有人写出同一个词。",
     inviteDescription:
       "无需注册。输入展示 ID 创建房间，把邀请链接或 6 位房间码发给朋友；全员在线并准备后，一起开始。",
     exampleTitle: "比如这样相遇",
@@ -56,6 +57,8 @@ const zh = {
     roomCodePlaceholder: "6 位房间码",
     joinRoom: "加入房间",
     rulesSummary: "怎么玩？",
+    closeRules: "知道了",
+    repository: "GitHub 仓库",
     rulesBody:
       "每轮各写一个词，揭晓后连接上一轮的所有答案。部分同词每人 +1，全员同词每人 +100。已揭晓的词不能再用；全员准备后一起开始。",
   },
@@ -208,17 +211,15 @@ const en: Dictionary = {
   document: {
     title: "Same Word · Multiplayer Word Association Game",
     description:
-      "Same Word is a free multiplayer word association game. Create a room, invite friends, and connect each other's answers until everyone writes the same word.",
+      "Same Word is a multiplayer word association game. Create a room, invite friends, and connect each other's answers until everyone writes the same word.",
     imageAlt: "Same Word: start with different words and meet at the same one.",
   },
   language: {
-    button: "Language",
     label: "Interface language",
     zh: "中文",
     en: "English",
   },
   theme: {
-    button: "Theme",
     label: "Page theme",
     system: "Follow system",
   },
@@ -234,12 +235,16 @@ const en: Dictionary = {
     reconnect: "Reconnect",
     forfeit: "Forfeit this game, stay in the room",
     leave: "Leave room",
+    leaveTitle: "Leave this room?",
+    leaveDescription:
+      "Are you sure you want to leave this room and return home?",
+    stay: "Stay in room",
   },
   home: {
     heroLineOne: "Different starts,",
     heroLineTwo: "the same word.",
     heroDescription:
-      "Same Word is a free multiplayer word association game. Each write a word, then connect each other's answers until everyone writes the same word.",
+      "Same Word is a multiplayer word association game. Each write a word, then connect each other's answers until everyone writes the same word.",
     inviteDescription:
       "No account needed. Pick a display ID, create a room, and send friends the invite link or 6-character code. Once everyone is online and ready, play together.",
     exampleTitle: "One way to meet",
@@ -257,6 +262,8 @@ const en: Dictionary = {
     roomCodePlaceholder: "6-character room code",
     joinRoom: "Join room",
     rulesSummary: "How to play?",
+    closeRules: "Got it",
+    repository: "GitHub repository",
     rulesBody:
       "Each round everyone writes one word, then links every answer from the previous round. Some players matching earns each of them +1; everyone matching earns each +100. Revealed words can't be reused, and the game starts once everyone is ready.",
   },

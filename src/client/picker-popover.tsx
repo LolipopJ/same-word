@@ -20,7 +20,9 @@ export function PickerPopover({
     <>
       <button
         type="button"
-        className="btn"
+        className="btn btn-square"
+        aria-label={label}
+        title={label}
         popoverTarget={id}
         style={{ anchorName: anchor } as CSSProperties}
       >

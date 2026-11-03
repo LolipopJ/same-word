@@ -72,4 +72,5 @@ pnpm test:network # Socket.IO 集成：容量、隐私、接管与历史权限
 ## 更多文档
 
 [`docs/`](docs/README.md) 收录游戏规则、架构、会话生命周期、界面细节、开发与部署说明。
-需求与变更记录在 `openspec/` 中维护。
+
+需求与变更记录在 [`openspec/`](openspec/) 中维护。

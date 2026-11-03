@@ -28,9 +28,11 @@ function homepage(): string {
   return `<main class="mx-auto max-w-4xl px-[max(0.75rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-[max(2rem,env(safe-area-inset-left),env(safe-area-inset-right))] sm:pt-[max(2rem,env(safe-area-inset-top))]">
     <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
       <a href="/" class="inline-flex min-h-11 items-center gap-2 text-xl font-black tracking-tight"><img src="/icon.svg" width="32" height="32" alt="" class="size-8" />${escape(t.app.brand)}</a>
-      <div class="flex min-w-0 flex-wrap items-center gap-2" aria-hidden="true">
-        <span class="badge h-auto badge-outline py-1 text-center">${escape(t.app.statusReconnecting)}</span>
-        <button class="btn" disabled>${escape(t.language.button)}</button><button class="btn" disabled>${escape(t.theme.button)}</button>
+      <div class="ml-auto flex min-w-0 flex-wrap items-center gap-2">
+        <span class="badge invisible h-auto badge-outline py-1 text-center max-[390px]:hidden" aria-hidden="true">${escape(t.app.statusOnline)}</span>
+        <a class="btn btn-square" href="https://github.com/LolipopJ/same-word" target="_blank" rel="noopener noreferrer" aria-label="${h.repository}" title="${h.repository}"><svg class="size-5" viewBox="0 0 256 256" aria-hidden="true"><use href="/toolbar-icons.svg#github-logo"></use></svg></a>
+        <button class="btn btn-square" aria-label="${escape(t.language.label)}" title="${escape(t.language.label)}" disabled><svg class="size-5" viewBox="0 0 256 256" aria-hidden="true"><use href="/toolbar-icons.svg#translate"></use></svg></button>
+        <button class="btn btn-square" aria-label="${escape(t.theme.label)}" title="${escape(t.theme.label)}" disabled><svg class="size-5" viewBox="0 0 256 256" aria-hidden="true"><use href="/toolbar-icons.svg#palette"></use></svg></button>
       </div>
     </header>
     <div class="grid gap-5 md:grid-cols-2 md:items-start md:gap-8">
@@ -41,7 +43,10 @@ function homepage(): string {
       </section>
       <section class="card bg-base-100 shadow-sm card-border">
         <div class="card-body gap-4 p-4 sm:p-6">
-          <h2 class="card-title">${h.createTitle}</h2>
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="card-title min-w-0 flex-1">${h.createTitle}</h2>
+            <button type="button" class="btn shrink-0 btn-ghost" disabled>${h.rulesSummary}</button>
+          </div>
           <form class="fieldset gap-3">
             <label for="display-name">${h.displayName}</label>
             <input id="display-name" class="input w-full" placeholder="${h.displayNamePlaceholder}" aria-describedby="name-hint" disabled />
@@ -53,7 +58,9 @@ function homepage(): string {
           </form>
         </div>
       </section>
-      <section class="card bg-base-100 shadow-sm card-border md:col-span-2">
+    </div>
+    <noscript>
+      <section class="card mt-5 bg-base-100 shadow-sm card-border">
         <div class="card-body gap-3 p-4 sm:p-6">
           <h2 class="card-title">${h.rulesSummary}</h2>
           <p class="text-sm/relaxed">${h.rulesBody}</p>
@@ -61,8 +68,8 @@ function homepage(): string {
           <p class="text-sm/relaxed">${h.exampleBody}</p>
         </div>
       </section>
-    </div>
-    <noscript><p class="mt-5 alert">${h.requiresJavaScript}</p></noscript>
+      <p class="mt-5 alert">${h.requiresJavaScript}</p>
+    </noscript>
   </main>`;
 }
 
@@ -126,6 +133,7 @@ export function searchIndexability(origin: string): Plugin {
       await Promise.all(
         [
           "icon.svg",
+          "toolbar-icons.svg",
           "icon-32.png",
           "apple-touch-icon.png",
           "icon-192.png",

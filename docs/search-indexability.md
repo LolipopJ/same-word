@@ -15,6 +15,8 @@
 
 首次直接打开首页且没有手选语言时，中文与英文浏览器都显示中文；邀请入口继续按浏览器语言选择。页头手动选择会立即生效并记忆，刷新后优先使用。构建只读取无 DOM 依赖的语言数据，静态正文与客户端介绍、邀请说明、规则和示例共用 `src/client/i18n/messages.ts`。
 
+正常开启 JavaScript 时，规则与示例从入房卡片标题右侧的“怎么玩？”按钮打开对话框查看；无 JavaScript 时，生产首页通过 `noscript` 直接展示相同内容。构建首页不写入重连提示，连接状态预留位置与客户端一致，390px 以下不占位；右上方的仓库、语言和主题图标按钮及标题对齐方式也在构建 HTML 中保持一致。工具栏 SVG 图标由 `src/client/public/toolbar-icons.svg` 提供，并随构建复制到发布目录。
+
 ## 品牌图片
 
 `src/client/public/icon.svg` 是图标的唯一设计源。使用 [Noto Sans SC](https://github.com/notofonts/noto-cjk) 中文字体文件重新生成 PNG 图标与 1200×630 分享图：

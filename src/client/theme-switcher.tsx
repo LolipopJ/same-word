@@ -23,7 +23,11 @@ export function ThemeSwitcher() {
   return (
     <PickerPopover
       id="theme-picker"
-      trigger={t.theme.button}
+      trigger={
+        <svg className="size-5" viewBox="0 0 256 256" aria-hidden="true">
+          <use href="/toolbar-icons.svg#palette" />
+        </svg>
+      }
       label={t.theme.label}
       scrollable
     >

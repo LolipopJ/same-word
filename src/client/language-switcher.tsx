@@ -9,7 +9,11 @@ export function LanguageSwitcher() {
   return (
     <PickerPopover
       id="language-picker"
-      trigger={t.language.button}
+      trigger={
+        <svg className="size-5" viewBox="0 0 256 256" aria-hidden="true">
+          <use href="/toolbar-icons.svg#translate" />
+        </svg>
+      }
       label={t.language.label}
     >
       {locales.map((value) => (

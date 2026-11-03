@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { Action } from "./App.js";
 import { override, useLocale } from "./i18n/locale.js";
@@ -18,6 +18,7 @@ export function HomeScreen({
   action: Action;
 }) {
   const { t } = useLocale();
+  const rulesDialogRef = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   return (
@@ -53,9 +54,21 @@ export function HomeScreen({
             sm:p-6
           "
         >
-          <h2 className="card-title">
-            {inviteCode !== null ? t.home.joinInviteTitle : t.home.createTitle}
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="card-title min-w-0 flex-1">
+              {inviteCode !== null
+                ? t.home.joinInviteTitle
+                : t.home.createTitle}
+            </h2>
+            <button
+              type="button"
+              className="btn shrink-0 btn-ghost"
+              aria-haspopup="dialog"
+              onClick={() => rulesDialogRef.current?.showModal()}
+            >
+              {t.home.rulesSummary}
+            </button>
+          </div>
           {online && inviteCode !== null && <InviteStatus code={inviteCode} />}
           <form
             className="fieldset gap-3"
@@ -122,24 +135,27 @@ export function HomeScreen({
           </form>
         </div>
       </section>
-      <section
-        className="
-          card bg-base-100 shadow-sm card-border
-          md:col-span-2
-        "
+      <dialog
+        ref={rulesDialogRef}
+        id="rules-dialog"
+        className="modal"
+        aria-labelledby="rules-title"
       >
-        <div
-          className="
-            card-body gap-3 p-4
-            sm:p-6
-          "
-        >
-          <h2 className="card-title">{t.home.rulesSummary}</h2>
+        <div className="modal-box space-y-3">
+          <h2 id="rules-title" className="text-lg font-bold">
+            {t.home.rulesSummary}
+          </h2>
           <p className="text-sm/relaxed">{t.home.rulesBody}</p>
           <h3 className="font-semibold">{t.home.exampleTitle}</h3>
           <p className="text-sm/relaxed">{t.home.exampleBody}</p>
+          <form method="dialog" className="modal-action">
+            <button className="btn">{t.home.closeRules}</button>
+          </form>
         </div>
-      </section>
+        <form method="dialog" className="modal-backdrop">
+          <button>{t.home.closeRules}</button>
+        </form>
+      </dialog>
     </div>
   );
 }

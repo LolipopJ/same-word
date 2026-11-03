@@ -75,4 +75,6 @@ Module layout, protocol, HTTP endpoints, and tests are covered in
 ## More documentation
 
 [`docs/`](docs/README.md) covers game rules, architecture, session lifecycle, interface details,
-development, and deployment. Requirements and change records live in `openspec/`.
+development, and deployment.
+
+Requirements and change records live in [`openspec/`](openspec/).
